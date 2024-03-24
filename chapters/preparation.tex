@@ -1,8 +1,55 @@
 \label{sec:2}
 
-Preparation...
+Summary...
 
-\section{Preparation Section 1}
+\section{Starting Point}
 \label{sec:2.1}
 
-Preparation Section 1... 
+My project utilized a selection of pre-existing libraries. OpenGL was employed to establish the core graphics pipeline. GLFW provided the necessary tools for managing desktop application windows, while Dear ImGui was utilized for the development of the desktop application's user interface. To maintain a structured and efficient compilation process, CMake was incorporated. Additionally, the project leveraged nlohmann json for JSON manipulations in C++, stb image for image saving functionality, and glm for efficient handling of matrix and vector operations in C++.
+
+Aside from these libraries, the project was developed from scratch, with particular attention given to the GLSL fragment shaders I wrote, which did not utilize any external libraries.
+
+I had prior experience with OpenGL wrapper libraries, gained through the "Introduction to Graphics" course and a past internship, although my direct experience with OpenGL is limited. I had worked with C++, Dear ImGui and CMake in a previous summer internship. While I had some exposure to HLSL through "Introduction to Graphics", my experience with GLSL prior to this project was nonexistent.
+
+\section{Requirement Analysis}
+\label{sec:2.2}
+
+The project’s success criteria forms the requirements:
+
+\begin{itemize}
+    \item Achieve real-time raymarched rendering of natural terrains, encompassing shadows, shading, and colouring. Screen recordings showcasing the rendered outcomes will be submitted to the department to highlight the real-time performance capabilities.
+    \item Attain realistic detailing in the terrains, including features like foliage and rocks, complemented by an authentic backdrop of clouds and sky.
+    \item Develop a desktop application that offers camera controls, allows real-time hyperparameter adjustments, and supports saving and loading of hyperparameters in an accessible plain-text format, such as JSON.
+\end{itemize}
+
+The requirements are refined to the deliverable table below.
+
+TODO
+
+\section{Background Materials}
+\label{sec:2.3}
+
+\section{Software Engineering Techniques}
+\label{sec:2.4}
+
+\section{Programming Language and Environment}
+\label{sec:2.5}
+
+This section explains my choice of the the tools and technologies utilized throughout the project.
+
+I chose OpenGL as the graphics interface due to its relative ease of setup. Since the majority of the project is implemented in fragment shaders, a straightforward setup was preferable, as I did not need to extensively modify the rendering pipeline.
+
+GLSL, integral to OpenGL, was the choice of the shader language. Its C-like syntax and comprehensive documentation made it easy for me to pick up and start working with shaders.
+
+For the integrated development environment (IDE), I used Visual Studio for the C++ development. The familiarity with this IDE and its seamless integration with CMake were the primary reasons behind this choice.
+
+On the other hand, I opted for Visual Studio Code as the dedicated shader editor. Its lightweight nature and the availability of custom extensions for syntax highlighting and theming made it a suitable choice for working with GLSL code. The two-IDE approach worked well because shaders are compiled separately when the app runs, allowing for a clear separation of concerns between the C++ and shader development.
+
+\section{Software License}
+\label{sec:2.6}
+
+Table N catalogs the licenses for all the tools and libraries utilized in this project.
+
+Table N: Overview of licenses for utilized tools and libraries in the project
+
+The MIT license was chosen for this project due to its simplicity, permissiveness and compatibility. It allows others to freely use, modify, and distribute the software while providing protection from liability.
