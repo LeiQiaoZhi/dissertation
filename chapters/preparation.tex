@@ -1,9 +1,16 @@
 \label{sec:2}
 
-Summary...
+\todo{Summary...}
+
+Based on the workflow of the app shown in Figure \ref{pipeline}, this section covers materials related to \textit{procedural generation techniques} (section \ref{Procedural Generation}) for creating implicit representations of scenes, and \textit{rendering methods} (section \ref{Rendering}) for these implicit representations. 
+
+\question{Shall I also include an overview of GPU architectures and fragment shaders?}
+
+\myfigure{1.0}{pipeline}
+{delineates the workflow of the app. First parameters are tuned in the GUI and sent to the fragment shaders as uniforms. Then the procedural generation stage utilizes the parameters to create implicit representation of the scene, which is then rendered using raymarching.}
 
 \section{Starting Point}
-\label{sec:2.1}
+\label{sec:Starting Point}
 
 My project utilized a selection of pre-existing libraries. OpenGL was employed to establish the core graphics pipeline. GLFW provided the necessary tools for managing desktop application windows, while Dear ImGui was utilized for the development of the desktop application's user interface. To maintain a structured and efficient compilation process, CMake was incorporated. Additionally, the project leveraged nlohmann json for JSON manipulations in C++, stb image for image saving functionality, and glm for efficient handling of matrix and vector operations in C++.
 
@@ -12,7 +19,7 @@ Aside from these libraries, the project was developed from scratch, with particu
 I had prior experience with OpenGL wrapper libraries, gained through the "Introduction to Graphics" course and a past internship, although my direct experience with OpenGL is limited. I had worked with C++, Dear ImGui and CMake in a previous summer internship. While I had some exposure to HLSL through "Introduction to Graphics", my experience with GLSL prior to this project was nonexistent.
 
 \section{Requirement Analysis}
-\label{sec:2.2}
+\label{sec:Requirement}
 
 The project’s success criteria forms the requirements:
 
@@ -22,15 +29,187 @@ The project’s success criteria forms the requirements:
     \item Develop a desktop application that offers camera controls, allows real-time hyperparameter adjustments, and supports saving and loading of hyperparameters in an accessible plain-text format, such as JSON.
 \end{itemize}
 
-The requirements are refined to the deliverable table below.
+The requirements are refined to deliverables, shown in Table \ref{deliverable_table}.
 
-TODO
+\figureastable{0.8}{deliverable_table}
+{lists all project deliverables. The deliverables are split into 4 types, based on the success criteria.}
 
-\section{Background Materials}
-\label{sec:2.3}
+\section{Procedural Generation of Natural Environments}
+\label{Procedural Generation}
+
+\todo{summary}
+2 questions, how to generate and how to represent?
+
+\subsection{Properties of Nature}
+
+Understanding nature is the first step in simulating and procedurally generating it.
+
+Nature, inherently random yet ordered, offers a complex canvas for study. In a forest, the placement of trees defies any rigid grid pattern; similarly, no two leaves are identical. Despite this randomness, nature isn't entirely without structure. Clouds, for instance, while seemingly chaotic, adhere to general shapes rather than resembling mere white noise. This blend of randomness with pattern is a hallmark of nature, exemplified by the principle of self-similarity. Self-similar objects in nature, whether they are clouds, mountain ranges, or tree barks, exhibit a fascinating characteristic: their parts mirror the whole in shape and texture. Even the minute lumps on a mountain's surface can strikingly resemble the mountain itself. Another observable property is the continuity and smoothness of natural changes, such as the gradual transition in soil salinity from a beach to inland areas.
+
+To effectively procedurally generate nature, it's crucial to replicate this interplay of self-similarity, continuity, and randomness.
+
+\subsection{Simulating the Properties of Nature}
+
+To simulate these properties, we first consider classical Brownian motion before moving to a more relevant model, Fractional Brownian Motion (fBm), which embodies randomness, self-similarity, and continuity.
+
+\subsubsection{Classical Brownian Motion}
+
+Classical Brownian motion, denoted as $B(t)$, serves as an essential model in the study of stochastic processes. It describes the random movement of particles with several key properties:
+
+\begin{enumerate}
+    \item The process begins at a fixed point, typically zero, so $B(0) = 0$.
+    \item  The increments of $B(t)$ over distinct, non-overlapping time intervals are independent. Specifically, for times $t_1 < t_2$ and $t_3 < t_4$ with $t_2 \leq t_3$, the increments $B(t_2) - B(t_1)$ and $B(t_4) - B(t_3)$ are independent of each other.
+    \item The increment $B(t + \Delta t) - B(t)$ is normally distributed with a mean of 0 and a variance of $\Delta t$, described by the normal distribution $\mathcal{N}(0, \Delta t)$.
+    \item The paths of $B(t)$ are continuous at all points but not differentiable at any point.
+\end{enumerate}
+
+Although classical Brownian motion encapsulates elements of randomness and continuity, it lacks self-similarity, a property crucial for mimicking the fractal-like structures observed in nature. 
+
+\subsubsection{Fractal Brownian Motion}
+
+Fractional Brownian Motion (fBm) generalises the classical Brownian Motion model. It incorporates long-range dependence or memory,  by introducing the Hurst exponent, $H$, which ranges between 0 and 1. 
+
+The correlation of increments in fBm is directly influenced by the value of $H$. 
+- When $0.5 < H < 1$, the increments exhibit positive correlation, indicating a trend where increases or decreases in the process are likely to be followed by similar movements.
+- When $0 < H < 0.5$, the increments display negative correlation.
+- When $H=0.5$, fBm simplifies to classical Brownian Motion, where increments are independent
+
+On key property of fBm is its self-similar structure, which means its statistical properties remain consistent under appropriate scaling of time and space. This property is a significant deviation from classical Brownian Motion and is vital for modeling phenomena that demonstrate fractal-like patterns. Akin to classical Brownian Motion, fBm maintains continuity in its paths.
+
+Therefore, fBm has the desired properties of randomness, self-similarity and continuity. It is suitable for procedural generation of elements nature such as terrain and clouds.
+
+How fBm is contructed is explained in section 3.\todo{}.
+
+\subsection{Implicit Representations}
+
+How can large/infinite complex surfaces such as terrains and clouds be represented? This section focuses on implicit representation as a key solution, and introduces two special types of  implicit representations: heightmaps and Signed Distance Fields (SDFs).
+
+\subsubsection{Implicit Representation: A Solution for Complex Surfaces}
+
+In digital representation of 3D geometry, explicit methods like polygon meshes have traditionally been preferred, relying on vertices, edges, and faces to define surfaces. While well-supported in hardware and software, these methods face limitations with large or complex surfaces, leading to high storage and memory demands. Crucially, they also lack the ability to achieve infinite resolution, which is vital for rendering detailed and expansive landscapes.
+
+In contrast, implicit representation is a powerful alternative. At its core, an implicit equation is a relation in the form of $R(x_1,\dots,x_n)=0$, where $R$ is the implicit function. The solution space of a n-dimensional implicit equation describes the surface of an n-dimensional shape. This allows complex surfaces such as large or even infinite terrains to be defined using a single function. This approach significantly reduces memory and storage requirements compared to traditional mesh-based methods. Additionally, the sign of the implicit function indicates whether the point is inside or outside the surface (negative when inside), simplifying spatial determinations crucial for advanced rendering techniques, such as raymarching.
+
+\subsubsection{Heightmaps}
+
+A heightmap $H(x,z)$ define the elevation $y$ of the terrain at each point $(x,z)$. This function is a scalar field, where each point in the field has a single value of elevation associated with it. The implicit equation representing terrain's geometry is expressed as:
+
+\begin{equation}
+y - H(x,z) = 0
+\end{equation}
+
+\todo{mention somewhere the coordinate system in this project has y pointing upwards}
+
+\subsubsection{Signed Distance Functions}
+
+Another potent implicit representation is the Signed Distance Function (SDF), symbolized as $S(x,y,z)$ in 3D space. For every point in space, the SDF assigns a value representing the shortest distance to the surface. Crucially, the sign of this value indicates whether the point is inside or outside the geometry. The implicit equation for an SDF-based terrain is simply:
+
+\begin{equation}
+S(x,y,z) = 0 
+\end{equation}
+
+It's important to note that heightmaps and SDFs are distinct; while heightmaps are 2D scalar fields providing elevation data, 3D SDFs are 3D scalar fields providing the shortest distance to the surface at each point. 
+
+
+\section{Rendering}
+\label{Rendering}
+
+The rendering model of my project utilized raymarching as a per-pixel rendering technique. For every pixel on the screen, a ray, hereinafter referred to as the "camera ray," is emitted from the camera and directed towards the respective pixel. This process goes well naturally in the fragment shader, which can be run in parallel on the GPU.
+
+Mathematically the camera ray can be expressed as:
+
+\begin{equation}
+ \mathbf{R}(t) = \mathbf{O} + t\mathbf{D} 
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $\mathbf{O}$ is the ray origin, which is the camera position in the scene
+    \item $\mathbf{D}$ is the normalized direction vector pointing from the camera towards the pixel
+    \item $t$ is the distance along the ray
+\end{itemize}
+
+For every pixel, the process is:
+\begin{enumerate}
+    \item find the intersection betwen the camera ray and scene objects
+    \item apply textures and lighting based on information at the point of intersection.
+\end{enumerate}
+
+Following this process, this section first introduces raymarching, which is employed to find intersections, and then describes some lighting models used in this project.
+
+\subsection{Raymarching SDFs}
+
+One of the most efficient techniques for rendering scenes composed of SDFs is an algorithm known as Sphere Tracing (\todo{reference}). In this context, consider a camera ray $\mathbf{R}(t)$, and the scene is assumed to contain multiple SDFs, denoted as $\text{SDF}_1, \dots, \text{SDF}_n$.
+
+The core idea of Sphere Tracing is to iteratively move along the ray, incrementing the distance $t$ by the smallest distance to any surface in the scene. This distance is determined at each step as the minimum SDF value among all SDFs at the current point on the ray. The process is mathematically expressed as:
+
+\begin{equation}
+    t_{i+1} = t_{i} + \min_i(\text{SDF}_i(\mathbf{R}(t_i)))
+\end{equation}
+
+This process continues until the ray either exceeds a predefined maximum distance, $t_{max}$, or when a specified maximum number of steps is reached, suggesting no intersection within the scene's bounds. The process also terminates when the absolute value of the minimum SDF at the current ray position is less than a small threshold $\epsilon$, implying an intersection.
+
+\begin{equation}
+|\min_{i}(\text{SDF}_i(\mathbf{R}(t_i)))| < \epsilon 
+\end{equation}
+
+This concept is crucial in the rendering of trees, as discussed in a section 3.\todo{}. Figure \ref{raymarch_sdf} illustrates the Sphere Tracing algorithm in action, where it finds the intersection between the camera ray and two SDFs. 
+
+\myfigure{0.8}{raymarch_sdf}
+{Illustration of Sphere Tracing for Raymarching SDFs. The camera emits a ray that is iteratively advanced by the minimum distance to the surfaces of SDF 1 and SDF 2. The ray progresses until it closely approaches the boundary of SDF 2, indicating an intersection.}
+
+\subsection{Raymarching Heightmaps}
+
+When dealing with a single heightmap $H$, the Sphere Tracing algorithm is inapplicable since heightmaps are not SDFs. Here, a more rudimentary form of raymarching, termed the \textit{fixed-step raymarching algorithm}, is employed.
+
+This algorithm advances the ray with a constant step size, $\lambda$. At each step, it evaluates the implicit function $y-H(x,z)$. The process is mathematically expressed as:
+
+\begin{equation}
+    t_{i+1} = t_{i} + \lambda
+\end{equation}
+
+The algorithm terminates when this function's value drops below zero, indicating an intersection with the heightmap. To refine the exact point of intersection, linear interpolation is used between the last two points. The interpolation process is mathematically expressed as:
+
+\begin{equation}
+t^\prime = t - \lambda \frac{H(\mathbf{P}.xz) - \mathbf{P}.y}
+    {H(\mathbf{P}.xz) - \mathbf{P}.y - H(\mathbf{P^\prime}.xz) - \mathbf{P^\prime}.y}
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $t$ is the distance just before interpolation.
+    \item $t^\prime$ is the distance after interpolation.
+    \item $\mathbf{P}=\mathbf{O}+t$ is the point on the ray just before interpolation.
+    \item $\mathbf{P^\prime}=\mathbf{O}+t^\prime$ is the point on the ray after interpolation.
+\end{itemize}
+
+This dissertation further explores numerous optimizations of this algorithm in section 3.\todo{}. Figure \ref{raymarch_terrain} illustrates the fixed-step raymarching algorithm in action, where it finds the intersection between the camera ray and a 1D heightmap.
+
+\myfigure{0.8}{raymarch_terrain}
+{Illustration of Fixed-step Raymarching for Heightmaps. The camera emits a ray that is iteratively advanced by a constant distance to the surface of a terrain. The ray progresses until it goes below the terrain, followed by a linear interpolation.}
+
+
+\subsection{Lighting Models}
+
+\section{GPU}
 
 \section{Software Engineering Techniques}
 \label{sec:2.4}
+
+This section discusses the development model and practices employed throughout the project.
+
+I adopted the Agile methodology, with its emphasis on iterative and incremental development. I broke complex features down into smaller tasks, and managed them in a Kanban board, organized by stages of development. This not only facilitated better organization but also allowed for continuous delivery and ongoing improvements based on feedback and experimental results.
+
+The project's extensive use of GLSL (OpenGL Shading Language) brought unique challenges, notably the scarcity of testing frameworks, debuggers and general functionalities. To counter this, I employed various methods to aid in testing and debugging. By incorporating color-coding techniques akin to heat maps, I could visualize quantities such as depth and normals. Additionally, I created visual "gizmos" like lines and circles to aid in the debugging process. The app's user interface allowed seamlessly switching between different rendering targets, enabling the display of diverse debugging visuals on demand. I made sure to test each individual feature thoroughly this way before integration with other features.
+
+To address the lack of import functionality in GLSL, I wrote a custom preprocessor in C++. This allowed me to maintain modular shader files, preventing the codebase from becoming an unwieldy monolith. I included a shader dependency graph in Figure \ref{dependency} to demonstrate the organization of the shader files.
+
+I paid careful attention to naming conventions across the C++ and GLSL codebases, opting for snake case for functions and variables, and Pascal case for classes and namespaces. This consistency, coupled with specific prefixes and suffixes for variable types (such as "in" and "out" parameters in GLSL), enhanced code readability and maintainability. Considering the limited GLSL syntax highlighting in IDEs, I leveraged these naming conventions to implement custom syntax highlighting using regular expressions.
+
+I utilized Git for version control and GitHub as a remote repository for backup. I made sure to make regular commits and pushes.
+
+\myfigure{1.0}{dependency}
+{dependency graph for all the shader files in the project. A $\rightarrow$ B means A imports B.}
 
 \section{Programming Language and Environment}
 \label{sec:2.5}
@@ -45,11 +224,13 @@ For the integrated development environment (IDE), I used Visual Studio for the C
 
 On the other hand, I opted for Visual Studio Code as the dedicated shader editor. Its lightweight nature and the availability of custom extensions for syntax highlighting and theming made it a suitable choice for working with GLSL code. The two-IDE approach worked well because shaders are compiled separately when the app runs, allowing for a clear separation of concerns between the C++ and shader development.
 
+
 \section{Software License}
 \label{sec:2.6}
 
-Table N catalogs the licenses for all the tools and libraries utilized in this project.
-
-Table N: Overview of licenses for utilized tools and libraries in the project
+Table \ref{license_table} catalogs the licenses for all the tools and libraries utilized in this project.
 
 The MIT license was chosen for this project due to its simplicity, permissiveness and compatibility. It allows others to freely use, modify, and distribute the software while providing protection from liability.
+
+\figureastable{0.8}{license_table}
+{Overview of licenses for utilized tools and libraries in the project.}

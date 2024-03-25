@@ -6,6 +6,7 @@
 \usepackage{amsmath, amssymb}
 \usepackage[utf8]{inputenc}
 \usepackage{titlesec}
+\usepackage{xcolor}
 
 % code highlighting
 \usepackage{minted}
@@ -33,3 +34,29 @@
 \sloppy
 \clubpenalty1000%
 \widowpenalty1000%
+
+\newcommand{\figureastable}[3]{
+\begin{table}[H]
+    \centering
+    \includegraphics[width=#1\textwidth]{figures/#2.png}
+    \caption{#3}
+    \label{#2}
+\end{table}
+}
+
+\newcommand{\myfigure}[3]{
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=#1\textwidth]{figures/#2.png}
+    \caption{#3}
+    \label{#2}
+\end{figure}
+}
+
+\newcommand{\todo}[1]{
+    \colorbox{yellow}{\textcolor{darkgray}{\textbf{TODO:} #1}}
+}
+
+\newcommand{\question}[1]{
+    \textcolor{purple}{\textbf{QUESTION:} #1}
+}
