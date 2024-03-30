@@ -4,6 +4,8 @@
 \usepackage{fancyhdr}  % for tweaking the running header/footer lines
 \usepackage{amsfonts}
 \usepackage{amsmath, amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 \usepackage[utf8]{inputenc}
 \usepackage{titlesec}
 \usepackage{xcolor}
@@ -15,6 +17,7 @@
 \usepackage[margin=2cm]{geometry}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{\bigskipamount}
+
 % \renewcommand{\baselinestretch}{1.1}
 
 % title spacing
@@ -35,20 +38,20 @@
 \clubpenalty1000%
 \widowpenalty1000%
 
-\newcommand{\figureastable}[3]{
-\begin{table}[H]
+\newcommand{\figureastable}[4]{
+\begin{table}[#3]
     \centering
     \includegraphics[width=#1\textwidth]{figures/#2.png}
-    \caption{#3}
+    \caption{#4}
     \label{#2}
 \end{table}
 }
 
-\newcommand{\myfigure}[3]{
-\begin{figure}[H]
+\newcommand{\myfigure}[4]{
+\begin{figure}[#3]
     \centering
     \includegraphics[width=#1\textwidth]{figures/#2.png}
-    \caption{#3}
+    \caption{#4}
     \label{#2}
 \end{figure}
 }

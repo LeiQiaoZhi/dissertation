@@ -1,8 +1,457 @@
 \label{sec:3}
 
-Implementation...
+The app's workflow, as shown in Figure \ref{pipeline}, consists of three main stages: user interface (UI), procedural generation, and rendering
 
-\section{Implementation Section 1}
-\label{sec:3.1}
+Given the project's scope -- encompassing the generation and rendering of multiple natural elements -- it is practical to discuss the procedural generation and rendering of each element individually, treating UI as a distinct subject.
 
-Implementation Section 1... 
+The chapter begins with an overview of the implementation, followed by detailed sections on each natural element: terrain, trees, water, clouds, and the atmosphere. Finally, it discusses input handling, the user interface, and how the app was extended to project procedural terrain onto a sphere to generate planets.
+
+\section{Implementation Overview}
+\label{Implementation Overview}
+
+This chapter outlines the core architecture of the app, focusing on the execution sequences of both the graphics pipeline and the fragment shader within that pipeline.
+
+\subsection{Pipeline Execution Order}
+
+Central to the ray marching rendering approach is the use of a \textbf{screen quad}. In this project, since both geometry and rendering processes are encapsulated within the fragment shader, only a basic quad covering the entire screen is necessary. This screen quad, essentially a simple rectangle spanning the viewport, acts as the canvas on which all scene elements are rendered.
+
+The application pipeline in OpenGL, following the flowchart in Figure \ref{pipeline_order}, is structured as follows:
+\begin{enumerate}
+    \item \textbf{Initialization}: The setup involves creating a window using GLFW, initializing OpenGL, and preparing a Vertex Buffer Object (VBO) and an Element Buffer Object (EBO) for the screen quad. The screen quad vertices and indices are predefined constants.
+    \item \textbf{Shader Compilation}: This step includes preprocessing includes and compiling shaders, complete with error reporting.
+    \item \textbf{Render Loop}: The main loop encompasses rendering the screen quad, handling user inputs for interactive elements and camera movement, and updating the UI to reflect changes in uniforms sent to the GPU.
+\end{enumerate}
+
+\myfigure{0.7}{pipeline_order}{}
+{Outlines the execution order of the application pipeline.}
+
+Notably, all procedural generation and rendering are executed within fragment shaders, which are responsible for rendering the screen quad. The rest of the pipeline stages are managed through C++.
+
+\subsection{Shader Execution Order}
+
+The primary focus is on the fragment shader, as the vertex shader performs only minimal functions
+
+It is worth noting that while procedural generation is a distinct stage in the conceptual workflow, in practice, it occurs \textbf{implicitly} within the implementation. The geometry is defined by implicit functions, which are in turn determined by various parameters. Once these parameters are set, the procedural generation phase is effectively complete. Therefore, the focus of the fragment shader’s execution order is on the rendering aspects of the scene.
+
+For flat, infinite worlds, following the flowchart in Figure \ref{shader_order}, the shader operates in this sequence:
+\begin{enumerate}
+    \item Compute camera and sun rays.
+    \item Perform raymarching to detect intersections with terrain, trees, or water.
+    \item Render the intersected object (terrain, tree, or water).
+    \item For pixels without intersections:
+        \begin{enumerate}
+            \item Render the sun disk.
+            \item Render clouds (two layers: 3D below, 2D above).
+        \end{enumerate}
+    \item Simulate atmospheric Rayleigh scattering for each pixel, resulting in atmospheric perspective effects for intersected pixels, and determining the sky color for pixels without intersections.
+\end{enumerate}
+
+\todo{CORRECTION. Clouds can happen after intersection, because of aerial view. And water after trees and terrain since it is transparent.}
+
+\myfigure{1.0}{shader_order}{}
+{Outlines the execution order of the fragment shader.}
+
+Before delving into the specifics of each natural element, it’s essential to first explain the universal setup processes, which include calculating both the camera ray and the sun ray.
+
+\subsubsection{Calculating the Camera Ray}
+
+For each pixel, the process to calculate the camera ray (defined in Section \ref{Rendering}) involves transforming screen coordinates to a normalized space, and then determining the corresponding direction in the world space.
+
+\paragraph{Screen to normalized space}
+To make the rendering resolution-independent, each pixel's screen coordinates are converted to a normalized space. Let $\mathbf{p}$ be the screen coordinates and $\mathbf{res}$ be the resolution. The normalized coordinates $\mathbf{n}$ are given by:
+
+\begin{equation}
+   \mathbf{n} = \frac{2 \cdot \mathbf{p} - \mathbf{res}}{\min(\mathbf{res}.x, \mathbf{res}.y)}
+\end{equation}
+
+\paragraph{World position calculation}
+To find the world position for each pixel, the camera parameters are used. Let $\mathbf{C}$ be the camera position, $\mathbf{F}, \mathbf{R}, \mathbf{U}$ be the forward, right and up directions respectively, and $f$ be the focal length. Here, $f$ is the distance in world coordinates between the camera $\mathbf{C}$ and the projection plane, influencing the field of view. The world position $\mathbf{W}$ is computed as:
+
+\begin{equation}
+   \mathbf{W} = \mathbf{C} + \text{normalize}(\mathbf{F}) \cdot f + \mathbf{n}.x \cdot \text{normalize}(\mathbf{R}) + \mathbf{n}.y \cdot \text{normalize}(\mathbf{U})
+\end{equation}
+
+\paragraph{Deriving the camera ray}
+The direction of the camera ray $\mathbf{CR}$ is the normalized vector from the camera position to the world position of the pixel. It is expressed as:
+
+\begin{equation}
+   \mathbf{CR} = \text{normalize}(\mathbf{W} - \mathbf{C})
+\end{equation}
+
+These steps establish the direction of each ray from the camera to the pixel in world space, setting the foundation for ray marching.
+
+\subsubsection{Calculating the Sun Ray}
+
+In this project, the \textbf{sun ray}, $\mathbf{SR}$, is the normalized vector from a point in the world, towards the sun. 
+
+In simulating realistic lighting, the sun is treated as a directional light source due to its immense distance from Earth. This assumption implies that the sun's rays are parallel at every point in the world, sharing a common direction.
+
+The sun ray's direction is represented using spherical coordinates, which offer a convenient method to define the direction in 3D space using only two parameters: azimuth ($\phi$) and elevation ($\theta$). These parameters are adjustable in the user interface, allowing run-time changes to the sun ray.
+
+The spherical coordinates $\phi$ and $\theta$ are used in the following manner to compute $\mathbf{SR}$:
+
+\begin{equation}
+    \mathbf{SR} = \text{normalize}\left( \begin{bmatrix} \sin(\theta) \cos(\phi) \\ \cos(\theta) \\ \sin(\theta) \sin(\phi) \end{bmatrix} \right)
+\end{equation}
+
+This vector is a critical component for lighting calculations in the rendering process.
+
+\textit{Following these foundational concepts, the subsequent sections detail each step of the shader execution process and delve into the specifics of rendering each natural element.
+}
+
+\section{Terrain}
+\label{Terrain}
+
+\subsection{Procedural Generation}
+
+\subsubsection{Implementing fBm}
+\label{Implement fbm}
+
+As discussed in Section \ref{construct fbm}, we can construct fBm using fractal noise. The function $\text{fBm}_k(\mathbf{x}, n)$ is evaluated as per the pseudocode outlined in Algorithm \ref{algo:fbm}. The specifics of the value noise implementation are detailed in Section \todo{REF}.
+
+\begin{algorithm}
+\caption{Compute fBm Value at a Point}
+\label{algo:fbm}
+\begin{algorithmic}[1]
+\Function{fBm}{$\mathbf{x}, n, \text{initial\_params}, \text{adjustment\_factors}$}
+    \State $\text{fBm\_value} \gets 0$
+    \State $\text{layer\_params} \gets \text{initial\_params}$
+    \For{$i = 0$ \textbf{to} $n-1$}
+        \State $\text{fBm\_value} \gets \text{fBm\_value} + \Call{ComputeLayerValue}{\mathbf{x}, \text{layer\_params}}$
+        \State $\text{layer\_params} \gets \Call{UpdateLayerParams}{\text{layer\_params}, \text{adjustment\_factors}}$
+    \EndFor
+    \State \Return $\text{fBm\_value}$
+\EndFunction
+\Statex
+\Function{UpdateLayerParams}{$\text{current\_params}, \text{adjustment\_factors}$}
+    \State $f_i, a_i, \mathbf{R}_i, \mathbf{o}_i \gets \text{current\_params}$
+    \State $\alpha, \beta, \mathbf{R}, \mathbf{o} \gets \text{adjustment\_factors}$
+    \State \Return $(f_i \cdot \alpha, a_i \cdot \beta, \mathbf{R} \mathbf{R}_i, \mathbf{o} + \mathbf{o}_i)$
+\EndFunction
+\Statex
+\Function{ComputeLayerValue}{$x, \text{layer\_params}$}
+    \State $f_i, a_i, \mathbf{R}_i, \mathbf{o}_i \gets \text{layer\_params}$
+    \State $\text{transformed\_x} \gets f_i \cdot \mathbf{R}_i \textbf{x} + \mathbf{o}_i$
+    \State \Return $a_i \cdot \Call{ValueNoise}{\text{transformed\_x}}$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Heightmap Generation}
+
+To generate a heightmap (Section \ref{Heightmap}) for terrain, we utilize the previously constructed fBm (details in Section \ref{Implement fbm}). The heightmap, $H(x,z)$, is defined as:
+
+\begin{equation}
+    H(x,z) = v\cdot\text{fBm}_{2}(\frac{(x,z)}{h})
+\end{equation}
+
+where $v$ represents a vertical scaling factor, and $h$ is a horizontal scaling factor, aiding in controlling the terrain's scale dimensions. Algorithm \ref{algo:fbm} is employed for the 2D fBm, $\text{fBm}_{2}$, implementation. Parameters such as $n$, $\text{initial\_params}$, and $\text{adjustment\_factors}$ are made adjustable in the application's user interface, as shown in Figure \ref{combined_3D}.
+
+\myfigure{0.7}{local_heightmap}{}
+{The image on the right shows a heightmap generated from fBm. The image on the left shows the associated terrain.}
+
+\paragraph{Limitation}
+The generated terrain, despite being infinite, lacks \textbf{variety}, typically manifesting as uniformly mountainous or plateau-like landscapes, as shown in Figure \ref{local_heightmap}.
+
+
+\subsubsection{Dual Heightmap}
+
+To inject diversity into the terrain, I introduce a dual heightmap system:
+
+\begin{enumerate}
+    \item \textbf{Local Heightmap} ($H_{l}$): Utilizes fBm with higher frequencies to detail terrain on a smaller scale.
+    \item \textbf{Global Heightmap} ($H_{g}$): Utilizes fBm with lower frequencies to define the overarching terrain shape and the extent of rockiness.
+\end{enumerate}
+
+The combined heightmap is formulated as follows:
+
+\begin{equation}
+H(x,z) = H_{g}(x,z) + \text{normalize}(H_{g}(x,z))\times H_{l}(x,z)
+\end{equation}
+
+This equation ensures:
+
+\begin{enumerate}
+    \item The \textbf{addition} of $H_{g}(x,z)$ establishes the general terrain contour.
+    \item The \textbf{multiplication} by $\text{normalize}(H_{g}(x,z))$ modulates the impact of $H_{l}(x,z)$, influencing the terrain's rockiness or ruggedness. Lower values of $H_{g}$ lead to gentler terrain, while higher values induce more pronounced elevation changes, akin to mountainous or rocky landscapes.
+\end{enumerate}
+
+In summary, the dual heightmap approach effectively blends local details with global terrain contours to create diverse and realistic landscapes, as clearly depicted in the Figure \ref{combined_heightmap} and \ref{combined_3D} for comparison.
+
+\myfigure{0.8}{combined_heightmap}{}
+{contrasts slices of the local heightmap with the combined heightmap along the x-axis. It illustrates that the local heightmap, when used alone, results in repetitive terrain shapes. In contrast, the combined heightmap presents varied landscapes, featuring both mountainous and flatter regions. It also demonstrates how the global heightmap (the blue curve) predominantly shapes the general terrain features.}
+
+\myfigure{1.0}{combined_3D}{}
+{The first image shows a mountainous terrain from the local heightmap. Terrain in the second image combines local and global heightmaps, featuring both mountains and plateaus. The third image displays the application's UI with adjustable terrain generation parameters.}
+
+
+\subsubsection{Domain Distortion}
+
+To create terrain with natural variation, my project applies \textbf{domain distortion}, adding unique and realistic features to the landscape. Domain distortion operates by modifying the input domain of a function before evaluation. For a given function $f(x)$, the domain is first distorted by a function $g(x)$, yielding $f(g(x))$ instead of the $f(x)$.
+
+For the heightmap of the terrain, such distortion must be spatially varied to produce interesting results and continuous to avoid abrupt changes. This is achieved by incorporating a secondary 2D fBm (Section REF) $\text{fBm}^\prime_2$, leading to the modified heightmap expression:
+
+\begin{equation}
+    H_l(x,z) = v\cdot\text{fBm}_{2}\left(\frac{x,z}{h}+\gamma\cdot\text{fBm}^\prime_2(x,z)\right)
+\end{equation}
+
+where $\gamma$ is the distortion magnitude, and $\text{fBm}^\prime_2$ utilizes distinct parameters. They are all adjustable via the application’s user interface.
+
+This approach is grounded in the principle that natural landscapes are rarely uniform. They are sculpted by an array of processes such as erosion, sedimentary deposition, and tectonic activities. Domain distortion through $\text{fBm}^\prime_2$ gives the generated terrain variations that mimic these geological phenomena. The use of fBm is particularly advantageous as it layers noises of varying frequencies and amplitudes; lower frequencies mimic large-scale geological shifts, while higher frequencies emulate smaller-scale details like erosion. This multi-scale noise application is visually demonstrated in Figure \ref{distortion_scale}.
+
+\myfigure{0.6}{distortion_scale}{}
+{Lower frequencies mimic large-scale geological shifts, while higher frequencies emulate smaller-scale details like erosion.}
+
+Choosing suitable parameter values for domain distortion is key.  Figure \ref{distortion_heightmap} displays how varying the distortion magnitude, $\gamma$, impacts the heightmap. While fine-tuning these parameters encourages the emergence of natural-looking terrains, pushing the parameters beyond typical ranges can yield intriguing, alien landscapes, as depicted in Figure \ref{alien}.
+
+\myfigure{1.0}{distortion_heightmap}{}
+{Impact of Varying Distortion Magnitude $\gamma$ on Heightmap Detail}
+
+\myfigure{0.4}{alien}{}
+{Exotic Terrain Features Generated by Domain Distortion}
+
+\subsection{Ray Marching}
+\label{Terrain Raymarching}
+
+\subsection{Procedural Coloring}
+\label{Terrain Procedural Texturing}
+
+In my project, the terrain is categorized into \textbf{four distinct elevation-based regions}: mud (below water level), sand, grass, and rock (illustrated in Figure \ref{4regions}).
+
+\myfigure{0.7}{4regions}{}
+{Cross-sectional representation of terrain illustrating the four elevation-based regions: mud, sand, grass, and rock. Striped textures are applied to steep areas.}
+
+\paragraph{Smooth boundaries}
+The elevation thresholds separating these regions are denoted as $h_{1} < h_{2} < h_{3}$. Rather than using rigid boundaries, each threshold incorporates a variation $\pm \delta_i$ to facilitate smooth transitions. This is achieved through the application of the $\text{smoothstep}$ function, allowing for gradual interpolation between regions.
+
+\paragraph{Dynamic boundaries}
+To enhance realism and avoid monotonous separation at fixed elevations, a 2D fBm function offsets these boundaries. Consequently, at any point $\mathbf{p}$, the modified boundary is expressed as:
+
+\begin{equation}
+    h_{i} + \text{fBm}_{2}(\mathbf{p}.xz) \pm \delta_i
+\end{equation}
+
+This dynamic boundary adjustment is demonstrated in action in Figure \ref{region_transition}.
+
+\myfigure{0.4}{region_transition}{}
+{Demonstrates smooth and dynamic boundary adjustments.}
+
+\paragraph{The grass region}
+In the grass region, coverage is determined by the slope's steepness, assessed via the y-component of the surface normal. A predefined threshold controls where grass appears: only on surfaces where this y-component is below the threshold, indicating flatter regions, grass is rendered. Interpolation is used to ensure smooth transition. This method ensures grass only populates gentler slopes, contributing to a more realistic and varied landscape appearance.
+
+Variation in the grass region is introduced by altering the coloration. By evaluating another 2D fBm on a point's xz coordinates, I smoothly transition between two distinct grass colors via interpolation. This method provides a more dynamic and visually appealing representation of grassy areas, as depicted in Figure \ref{grass}, which showcases the color-varied grass.
+
+\myfigure{0.8}{grass}{}
+{Aerial Perspective of the Color-Varied Grass Region. The left image displays the terrain with natural grass color variation, while the right image, in high-contrast black and white, emphasizes these variations for clearer visualization.}
+
+\paragraph{Striped rock texture}
+In steep areas, I have procedurally generated a rock texture resembling striped patterns found on mountains. This effect is created by horizontally stretching noise, producing stripe-like but non-uniform patterns. The degree of texture visibility is controlled by interpolating between the textured appearance and the rock's base color using the y-component of the normal. This ensures that stripes are prominent in steep regions, with a seamless transition to standard rock texture on less inclined surfaces. For texture mapping, the point's xy components are utilized as UV coordinates, reflecting the steep orientation. Figure \ref{stripe} illustrates this process.
+
+\myfigure{0.8}{stripe}{}
+{The left image displays the application of a striped pattern texture across the terrain. The right image illustrates the effect of interpolating this texture with the steepness of the terrain, resulting in the striped pattern showing only on steep slopes.}
+
+\textbf{Importantly}, the texturing process does not involve creating and sampling from an image; rather, it queries a function directly.
+
+
+\subsection{Illunmination and Shadows}
+
+\subsubsection{Shading}
+
+In shading the terrain, I utilized the Phong reflection model, which is detailed in Section \ref{Phong}, complemented by Fresnel Reflection, as introduced in Section \ref{Fresnel}. The Phong model requires several inputs: the intersection point determined through ray marching (see Section \ref{Terrain Raymarching}), the material color via procedural coloring (refer to Section \ref{Terrain Procedural Texturing}), the incident light direction from the sun's spherical coordinates (described in Section \todo{REF}), and the terrain normal, analytically derived from the heightmap (outlined in Section \todo{REF}).
+
+The Phong model calculates the ambient, diffuse, and specular terms according to its established formulae (Equations \ref{ambient}, \ref{diffuse} and \ref{specular}). My implementation followed the equations to calculate these three terms. The model's parameters are exposed in the application's user interface, allowing for real-time adjustments.
+
+For added realism, the Phong shading model is augmented with Fresnel Reflection. Using Schlick's approximation (Equation \ref{schlick}) to compute the Fresnel term, $F(\theta)$, the specular term within the Phong model, $I_s$, is modified to be:
+
+\begin{equation}
+I_{s} = k_s \cdot F(\theta) \cdot (R \cdot V)^n \cdot I
+\end{equation}
+
+Here, $F(\theta)$ is the Fresnel term, calculated using Schlick's approximation. This integration enhances the specular reflection in Phong Shading to vary with the viewing angle, aligning it more closely with real-world observations.
+
+In my implementation, I bypassed the direct calculation of the incidence angle $\theta$ for Schlick's approximation; instead, I computed $\cos(\theta)$ directly using the negative dot product of the normal and the camera ray, $\text{-dot(normal, camera\_ray)}$.
+
+\subsubsection{Shadows}
+
+\section{Trees}
+
+\subsection{Procedural Generation}
+\label{Tree Procedural Generation}
+
+In my project, SDFs (Section \ref{SDF}) are employed for tree representation. Each tree is modeled using the SDF of an ellipsoid, with added 3D fBm to mimic the foliage, and populated using domain repetition. 
+
+\paragraph{SDF of ellipsoids}
+Instead of a simplistic approach scaling a sphere's SDF, a more accurate representation for ellipsoids is utilized (\todo{REF}):
+
+\begin{equation}
+\text{SDF\_ellipsoid}(\mathbf{x}, \mathbf{r}) = \frac{\left\|\frac{\mathbf{x}}{\mathbf{r}}\right\| \cdot \left(\left\|\frac{\mathbf{x}}{\mathbf{r}}\right\| - 1\right)}{\left\|\frac{\mathbf{x}}{\mathbf{r} \cdot \mathbf{r}}\right\|}
+\end{equation}
+
+Here, $\mathbf{r}$ is a vector specifying the ellipsoid's dimensions, and the origin is assumed to be the center of the ellipsoid.
+
+\paragraph{fBm for leaves}
+The leaves are simulated by distorting the ellipsoid with a 3D fBm:
+
+\begin{equation}
+\text{SDF\_tree}(\mathbf{x}) = \text{SDF\_ellipsoid}(\mathbf{x}, \mathbf{r}) + \gamma \cdot \text{fBm}_3(\mathbf{x})
+\end{equation}
+
+In this formula, $\gamma$ represents the distortion magnitude, and it is adjustable in the application's UI along with the fBm parameters. The dimension $\mathbf{r}$ of the ellipsoids is randomized within a range to introduce size variation among trees.
+
+\paragraph{Domain repetition for tree population}
+To efficiently distribute trees across the terrain, a domain repetition technique is used. The SDF for a tree instance is made periodic on an infinite axis-aligned 2D square grid in the xz-plane. This results in a representation of infinite trees within this grid pattern. The tree positions are vertically adjusted by the terrain height and an additional constant $v$:
+
+\begin{equation}
+\begin{aligned}
+\text{SDF\_trees}(\mathbf{x}) &= \text{SDF\_tree}(\mathbf{x} - \mathbf{c}), \\
+\text{where } \mathbf{c}.x &= \mathbf{c}.z = \left(\left\lfloor \frac{\mathbf{x}}{d} \right\rfloor + 0.5\right) \cdot d, \\
+\mathbf{c}.y &= H(\mathbf{x}.{xz}) + v.
+\end{aligned}
+\end{equation}
+
+Here, $\mathbf{c}$ represents the center of the cell that $\mathbf{x}$ is in, and $d$ represents the cell size in the square grid. The domain repetition technique is depicted in Figure \ref{domain_rep}.
+
+\paragraph{Randomization and Species Variation}
+To avoid a uniform layout, a random offset $o(\mathbf{x})$, based on the position hashed, is introduced:
+
+\begin{equation}
+\begin{aligned}
+\text{SDF\_trees}(\mathbf{x}) &= \text{SDF\_tree}(\mathbf{x} - \mathbf{c}), \\
+\text{where } \mathbf{c}.x &= \mathbf{c}.z = \left(\left\lfloor \frac{\mathbf{x}}{d} \right\rfloor + 0.5\right) \cdot d + o(\mathbf{x}), \\
+\mathbf{c}.y &= H(\mathbf{x}.{xz}) + v.
+\end{aligned}
+\end{equation}
+
+Moreover, two species of trees (A and B) are introduced to add variety. The species type is determined using a 2D fBm; if $\text{fBm}(\mathbf{x})$ is below a certain threshold, the tree is of species A, otherwise species B. Each species has a different range for the randomized dimensions $\mathbf{r}$, allowing for distinct size characteristics between the species. The randomization of offsets and dimenions are depicted in Figure \ref{domain_rep}.
+
+\paragraph{Considering Neighboring Cells}
+The random offset $o(\mathbf{x})$ introduces complexity in determining the closest tree to any given point $\mathbf{x}$, as it may not necessarily be within the same cell as $\mathbf{x}$. To address this, I evaluate the surrounding eight cells, along with the cell containing $\mathbf{x}$, to find the nearest tree. The SDF for the trees, therefore, is calculated by finding the minimum distance to a tree among these nine cells:
+
+\begin{equation}
+\begin{aligned}
+\text{SDF\_trees}(\mathbf{x}) &= \min_{i\in\{-1,0,1\}}\min_{j\in\{-1,0,1\}}\text{SDF\_tree}(\mathbf{x} - \mathbf{c_{ij}}), \\
+\text{where } \mathbf{c_{ij}}.x & = \left(\left\lfloor \frac{\mathbf{x}}{d} \right\rfloor + i + 0.5\right) \cdot d + o(\mathbf{x}), \\
+\mathbf{c_{ij}}.z & = \left(\left\lfloor \frac{\mathbf{x}}{d} \right\rfloor + j + 0.5\right) \cdot d + o(\mathbf{x}), \\
+\mathbf{c_{ij}}.y &= H(\mathbf{x}.{xz}) + v.
+\end{aligned}
+\end{equation}
+
+\myfigure{1.0}{domain_rep}{}
+{Depicts domain repetition and the incorporation of randomized offsets and dimensions in tree generation, excluding species variation for simplicity.}
+
+\subsection{Ray Marching}
+
+\subsection{Procedural Coloring}
+
+In the procedural coloring of trees, the primary objective is to introduce \textbf{color variation}, enhancing the realism of tree materials. 
+
+I implemented two types of color variations: inter-species and intra-species. Each generated tree belongs to either species A or B (detailed in Section \ref{Tree Procedural Generation}), leading to the first type of variation, where different color schemes distinguish between the two species. Within each species, the second type of variation arises due to age differences among the trees. 
+
+For any given pixel intersecting a tree in the rendered image, the process involves identifying the tree's species and then retrieving the corresponding color palette -- typically a 'young' color and an 'old' color for that species. To simulate intra-species variation, a random value between 0 and 1 is generated. This value is then used to interpolate between the young and old colors, resulting in a nuanced and realistic coloration for each tree, as demonstrated in Figure \ref{tree}.
+
+\myfigure{0.4}{tree}{}
+{The trees featuring more saturated colors represent one species, while those with less saturation belong to another. Color variations within each species simulate age differences.}
+
+\subsection{Illumination and Shadows}
+
+\section{Water}
+
+\section{Clouds}
+
+\section{Atmosphere}
+
+\section{Input Controls}
+
+\section{UI}
+
+\subsection{Hierarchical Structure}
+
+The UI of the application is designed following a hierarchical structure, represented in Figure \ref{ui_hierarchy}.
+
+\begin{itemize}
+    \item \textbf{App Level}: The App is the singleton entity at the top level.
+    \item \textbf{Panel Level}: Within the App, multiple panels are present. Each panel inherits from a common abstract class.
+    \item \textbf{Property Level}: Each panel comprises several properties. These properties are again derived from an abstract class and are responsible for managing individual or groups of parameters.
+    \item \textbf{Parameter Management}: The properties are directly tied to the parameters essential to the procedural generation and rendering parts of the app. They correspond to uniforms on the GPU, facilitating real-time updates and interactions.
+\end{itemize}
+
+\myfigure{0.4}{ui_hierarchy}{}
+{Outlines the hierarchical structure of the UI.}
+
+The hierarchy in implementation directly corresponds to the visual structure of the UI, as illustrated in Figure \ref{ui_visual}.
+
+\myfigure{0.8}{ui_visual}{}
+{Demonstrates the visual hierarchical of the UI.}
+
+\subsection{Implementation of Properties}
+
+Properties within the UI are implemented using suitable ImGui components based on the type of the corresponding uniform:
+
+\begin{itemize}
+    \item \textbf{Boolean Uniforms}: Represented with checkboxes.
+    \item \textbf{Float or Integer Uniforms}: Controlled with sliders.
+    \item \textbf{Enums}: Managed via dropdown menus (using macros to simulate enums in GLSL).
+    \item \textbf{Colors}: Vec3 types for colors are handled with color pickers.
+    \item \textbf{General Vec3}: Input fields or three sliders are used.
+\end{itemize}
+
+UI interactions trigger updates to the corresponding uniforms in the GPU.
+
+\subsection{Composite Pattern}
+
+In enhancing the UI's flexibility and organizational structure, the \textbf{Composite Design Pattern} plays a crucial role. This design pattern allows for treating individual objects and compositions of objects uniformly. In the context of the app's UI:
+
+\begin{itemize}
+    \item \textbf{GroupProperty}: Implemented as a single property, it is a collapsible group containing multiple properties.
+    \item \textbf{TabPanel}: Implemented as a singular panel, it contains multiple sub-panels organized as tabs. 
+\end{itemize}
+
+Both elements allows for efficient space usage and better categorization, as demonstrated in Figure \ref{composite}.
+
+By using the Composite Design Pattern, the UI structure defined in the code to reflect the actual visual and functional hierarchy, allowing for intuitive interaction and easy modification or extension of the interface.
+
+\myfigure{0.8}{composite}{}
+{Demonstrates GroupProperty and TabPanel. GroupProperty allows several properties to be organized into a collapsible group. TabPanel allows several panels to be organized as tabs in a single panel.}
+
+\subsection{Save and Load}
+
+The UI supports saving and loading of parameters and layout preferences.
+
+\paragraph{Selection of JSON format}
+I chose the JSON format for the app's saving and loading because of its compatibility with various data types, its hierarchical structure that mirrors the app's design, and its human readability.
+
+\paragraph{Recursive implementation}
+The save and load functionality is implemented in a recursive manner. This design choice simplifies the process and ensures consistency across different levels of the UI. Each class in the application, including the app itself, every panel, and every property, implements $\text{save\_to\_json}$ and $\text{load\_from\_json}$ methods. This recursive approach mirrors the hierarchical nature of the UI, enabling seamless serialization and deserialization of parameters.
+
+\paragraph{Scope of save and load}
+One of the benefits of this hierarchical and recursive implementation is the flexibility it offers in terms of scope. It is possible to save and load configurations either globally or at the individual panel level. This flexibility is reflected in the UI, where buttons are provided in the menu bar for global operations, and within each panel for more localized control, as demonstrated in Figure \ref{save}.
+
+\paragraph{Example JSON structure}
+A typical JSON file structure for saving the app's parameters resembles the following:
+
+\begin{verbatim}
+{
+    "Panel 1": {
+        "Param X": {
+            "value a": 10,
+            "value b": 12
+        },
+        "Param Y": {
+            "value": 1.2
+        }
+    },
+    "Panel 2": {
+        "Param Z": {
+            "value": true
+        }
+    }
+}
+\end{verbatim}
+
+
+\subsection{Layout Preferences}
+
+In addition to parameter values, layout preferences such as the sizes and positions of panels are also managed through the save and load system. As shown in Figure \ref{save}, the menu bar includes options for saving and loading these layout configurations, further enhancing the app’s user experience.
+
+\myfigure{0.8}{save}{H}
+{Demonstrates the UI of save and load functionalities.}
