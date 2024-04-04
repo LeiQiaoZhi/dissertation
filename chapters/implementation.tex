@@ -79,6 +79,7 @@ The direction of the camera ray $\mathbf{cr}$ is the normalized vector from the 
 These steps establish the direction of each ray from the camera to the pixel in world space, setting the foundation for ray marching.
 
 \subsubsection{Calculating the Sun Ray}
+\label{Sun Ray}
 
 In this project, the \textbf{sun ray}, $\mathbf{sr}$, is the normalized vector from a point in the world, towards the sun. 
 
@@ -243,7 +244,7 @@ The step size in ray marching is dynamically adjusted based on two factors:
 
 \end{enumerate}
 
-The final stage in the ray marching process involves refining the intersection point for enhanced precision. Traditionally (Section \ref{Raymarching Heightmaps}), this is done through linear interpolation between the last two points, where  $\mathbf{B}$ is the point below the terrain and $\mathbf{A}$ is above it. In my approach, I have improved this process by employing a binary search method, as detailed in Algorithm \ref{label:bs}. This numerical technique allows for a more precise determination of the intersection.
+The final stage in the ray marching process involves refining the intersection point for enhanced precision. Traditionally (Section \ref{Raymarching Heightmaps}), this is done through linear interpolation between the last two points, where  $\mathbf{B}$ is the point below the terrain and $\mathbf{A}$ is above it. In my approach, I have improved this process by employing a binary search method, as detailed in Algorithm \ref{label:bs}. This numerical technique allows for a more precise determination of the intersection, as illustrated in Figure \ref{bs}.
 
 \begin{algorithm}
 \caption{Binary Search Refinement for Terrain Intersections}
@@ -268,7 +269,10 @@ The final stage in the ray marching process involves refining the intersection p
 \end{algorithmic}
 \end{algorithm}
 
-\todo{digram comparing linear interpolation and bs}
+\myfigure{0.8}{bs}{}
+{Comparing linear interpolation and binary search for terrain intersections. The right diagram shows a 2-step binary search, where $\mathbf{M}_1$ is below the terrain, leading to $\mathbf{M}_2$ being the midpoint between $\mathbf{P}_2$ and $\mathbf{M}_1$.}
+
+
 
 \subsection{Procedural Coloring}
 \label{Terrain Procedural Texturing}
@@ -315,7 +319,7 @@ In steep areas, I have procedurally generated a rock texture resembling striped 
 \subsubsection{Shading}
 \label{Terrain Shading}
 
-In shading the terrain, I utilized the Phong reflection model, which is detailed in Section \ref{Phong}, complemented by Fresnel Reflection, as introduced in Section \ref{Fresnel}. The Phong model requires several inputs: the intersection point determined through ray marching (see Section \ref{Terrain Raymarching}), the material color via procedural coloring (refer to Section \ref{Terrain Procedural Texturing}), the incident light direction from the sun's spherical coordinates (described in Section \todo{REF}), and the terrain normal, analytically derived from the heightmap (outlined in Section \todo{REF}).
+In shading the terrain, I utilized the Phong reflection model, which is detailed in Section \ref{Phong}, complemented by Fresnel Reflection, as introduced in Section \ref{Fresnel}. The Phong model requires several inputs: the intersection point determined through ray marching (see Section \ref{Terrain Raymarching}), the material color via procedural coloring (refer to Section \ref{Terrain Procedural Texturing}), the incident light direction from the sun's spherical coordinates (described in Section \ref{Sun Ray}), and the terrain normal, analytically derived from the heightmap (outlined in Section \todo{REF}).
 
 The Phong model calculates the ambient, diffuse, and specular terms according to its established formulae (Equations \ref{ambient}, \ref{diffuse} and \ref{specular}). My implementation followed the equations to calculate these three terms. The model's parameters are exposed in the application's user interface, allowing for real-time adjustments.
 
@@ -332,7 +336,7 @@ In my implementation, I bypassed the direct calculation of the incidence angle $
 \subsubsection{Shadows}
 \label{Terrain Shadows}
 
-To make terrain cast soft shadows, I implemented a method for calculating the penumbra factor, $P$, based on the approach in Section REF. Instead of measuring the actual distance from a shadow sample point to the terrain, I used vertical distance as a more efficient approximation. This method is visualized in Figure \ref{shadow_terrain} and implemented as outlined in Algorithm \ref{algo:soft shadow terrain}.
+To make terrain cast soft shadows (as demonstrated in Figure \ref{terrain_soft}), I implemented a method for calculating the penumbra factor, $P$, based on the approach in Section \ref{Shadows}. Instead of measuring the actual distance from a shadow sample point to the terrain, I used vertical distance as a more efficient approximation. This method is visualized in Figure \ref{shadow_terrain} and implemented as outlined in Algorithm \ref{algo:soft shadow terrain}.
 
 \begin{algorithm}
 \caption{Soft Shadow Calculation}
@@ -361,6 +365,8 @@ The shadow intensity, $S$, is subsequently integrated into the terrain's lightin
 
 Here, $I_{a}$, $I_{d}$, and $I_{s}$ are the ambient, diffuse, and specular contributions to the fragment's color.
 
+\myfigure{1.0}{terrain_soft}{}
+{Comparison of terrain rendering: no shadows, hard shadows, and soft shadows.}
 
 \section{Trees}
 
@@ -370,7 +376,7 @@ Here, $I_{a}$, $I_{d}$, and $I_{s}$ are the ambient, diffuse, and specular contr
 In my project, SDFs (Section \ref{SDF}) are employed for tree representation. Each tree is modeled using the SDF of an ellipsoid, with added 3D fBm to mimic the foliage, and populated using domain repetition. 
 
 \paragraph{SDF of ellipsoids}
-Instead of a simplistic approach scaling a sphere's SDF, a more accurate representation for ellipsoids is utilized (\todo{REF}):
+Instead of a simplistic approach scaling a sphere's SDF, a more accurate representation for ellipsoids is utilized (\todo{CITE}):
 
 \begin{equation}
 \text{SDF}_\text{ellipsoid}(\mathbf{X}, \mathbf{r}) = \frac{\left\|\frac{\mathbf{X}}{\mathbf{r}}\right\| \cdot \left(\left\|\frac{\mathbf{X}}{\mathbf{r}}\right\| - 1\right)}{\left\|\frac{\mathbf{X}}{\mathbf{r} \cdot \mathbf{r}}\right\|}
@@ -434,7 +440,10 @@ The random offset $o(\mathbf{X})$ introduces complexity in determining the close
 
 While Sphere Tracing, as detailed in Section \ref{Raymarching SDFs}, is a viable method for determining the intersection with the SDF of trees, initiating this process from the camera position for each tree intersection would be highly inefficient, considering that a similar ray marching process has just been done for the terrain.
 
-To optimize efficiency, I integrated checks for intersections with tree canopies into the terrain ray marching algorithm. The tree canopy, defined by a constant height above the terrain, serves as an effective bounding box for the trees, as depicted in Figure REF. Once the terrain intersection is identified through ray marching, the farthest canopy intersection point is then used as the starting position for Sphere Tracing of the trees. This approach substantially reduces computational overhead, as it reduces sphere tracing steps, as illustrated and compared in Figure \todo{REF}. 
+To optimize efficiency, I integrated checks for intersections with tree canopies into the terrain ray marching algorithm. The tree canopy, defined by a constant height above the terrain, serves as an effective bounding box for the trees, as depicted in Figure \ref{canopy}. Once the terrain intersection is identified through ray marching, the farthest canopy intersection point is then used as the starting position for Sphere Tracing of the trees. This approach substantially reduces computational overhead, as it reduces sphere tracing steps, as illustrated and compared in Figure \ref{canopy}. 
+
+\myfigure{1.0}{canopy}{}
+{Illustrating the efficiency of my tree ray marching method: Sphere Tracing from the camera (left) takes 3 steps, while starting from the canopy intersection (right) requires only 1 step.}
 
 \subsection{Procedural Coloring}
 
@@ -465,13 +474,13 @@ Similar to the shading approach for terrain (Section \ref{Terrain Shading}), the
 O = \text{smoothstep}(a, b, h_t)
 \end{equation}
 
-Here, the occlusion term $O$ is interpolated between 0 and 1 based on the height of the tree $h_t$, with parameters $a$ and $b$ controlling the interpolation. This occlusion term $O$ is then multiplied with the diffuse component $I_d$ of the lighting model, resulting in lower parts of the tree appearing less lit than the upper parts.
+Here, the occlusion term $O$ is interpolated between 0 and 1 based on the height of the tree $h_t$, with parameters $a$ and $b$ controlling the interpolation. This occlusion term $O$ is then multiplied with the diffuse component $I_d$ of the lighting model, resulting in lower parts of the tree appearing less lit than the upper parts, as demonstrated in Figure \ref{tree_illumination}.
 
 \subsubsection{Shadows}
 
 To make trees cast soft shadows, I adapted the technique used for terrains (see Section \ref{Terrain Shadows}), with adjustments to account for the translucent nature of tree foliage. Unlike solid terrain, tree foliage does not completely block light. I approximate the extent of shadowing with the degree of penetration of the shadow ray into the tree's volume. This is based on the principle that deeper penetration into the tree, likely indicating proximity to the trunk, results in deeper shadows.
 
-To achieve this effect, following Algorithm \ref{algo: tree shadow}, I accumulate the value $(\text{SDF}_{\text{trees}}(\mathbf{P_s}) - \lambda) \cdot t$ along the shadow ray path. This accumulation, represented by $D$, is used to determine the shadow intensity. Here, $\mathbf{P_s}$ represents points along the shadow ray, $t$ is the distance of the ray, and $\lambda$ serves as a threshold for considering tree SDF in shadow calculations. The resultant accumulated value, $D$, is then interpolated using a smoothstep function to calculate the shadow intensity, $S$. If $D \le D_{\text{min}}$, the point is classified as being in umbra, fully shadowed.
+To achieve this effect, following Algorithm \ref{algo: tree shadow}, I accumulate the value $(\text{SDF}_{\text{trees}}(\mathbf{P_s}) - \lambda) \cdot t$ along the shadow ray path. This accumulation, represented by $D$, is used to determine the shadow intensity. Here, $\mathbf{P_s}$ represents points along the shadow ray, $t$ is the distance of the ray, and $\lambda$ serves as a threshold for considering tree SDF in shadow calculations. The resultant accumulated value, $D$, is then interpolated using a smoothstep function to calculate the shadow intensity, $S$. If $D \le D_{\text{min}}$, the point is classified as being in umbra, fully shadowed. The result is demonstrated in Figure \ref{tree_illumination}.
 
 \begin{algorithm}
 \caption{Tree Shadow Calculation}
@@ -494,6 +503,9 @@ To achieve this effect, following Algorithm \ref{algo: tree shadow}, I accumulat
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
+
+\myfigure{1.0}{tree_illumination}{}
+{Illustrating the complete process of tree illumination and shadowing.}
 
 \section{Water}
 
