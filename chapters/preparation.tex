@@ -15,6 +15,7 @@ The chapter then describes the requirements (Section \ref{sec:Requirement}) and 
 This section provides background materials necessary for addressing the topic of procedurally generating and representing natural elements digitally. It starts by examining nature's properties and how Fractional Brownian Motion captures them, then moves on to discuss representing complex surfaces like terrains and clouds with implicit representations.
 
 \subsection{Properties of Nature}
+\label{Properties of Nature}
 
 Understanding nature is the first step in simulating and procedurally generating it.
 
@@ -40,6 +41,7 @@ Classical Brownian motion, denoted as $B(t)$, serves as an essential model in th
 Although classical Brownian motion encapsulates elements of randomness and continuity, it lacks self-similarity, a property crucial for mimicking the fractal-like structures observed in nature. 
 
 \subsubsection{Fractal Brownian Motion}
+\label{FBM}
 
 Fractional Brownian motion (fBm) generalises the classical Brownian motion model. It incorporates long-range dependence or memory,  by introducing the Hurst exponent, $H$, which ranges between 0 and 1. 
 
@@ -92,10 +94,10 @@ Similarly, rotations and translations are defined using a consistent rotation ma
 
 \paragraph{Summation of layers}
 
-The final construction of fBm is achieved through a point-wise summation of these layers. Let $N_k(\mathbf{x})$ represent the value of the k-dimensional noise function at point $\mathbf{x}$. The fBm $\text{fBm}_k(\mathbf{x}, n)$ at point $\mathbf{x}$ is then given by:
+The final construction of fBm is achieved through a point-wise summation of these layers. Let $N_k(\mathbf{P})$ represent the value of the k-dimensional noise function at point $\mathbf{P}$. The fBm $\text{fBm}_k(\mathbf{P})$ at point $\mathbf{P}$ is then given by:
 
 \begin{equation}
-    \text{fBm}_k(\mathbf{x}, n) = \sum_{i=0}^{n} a_i \cdot N_k(f_i \cdot \mathbf{R}_i\mathbf{x} + \mathbf{o}_i)
+    \text{fBm}_k(\mathbf{P}) = \sum_{i=0}^{n} a_i \cdot N_k(f_i \cdot \mathbf{R}_i\mathbf{P} + \mathbf{o}_i)
 \end{equation}
 
 Here, $n$ denotes the total number of layers. The sum of these adjusted layers results in a noise field that embodies the essential characteristics of fBm -- the smooth gradient noise creates randomness and continuity and layering of the noises with different frequencies creates self similarity.
@@ -103,21 +105,21 @@ Here, $n$ denotes the total number of layers. The sum of these adjusted layers r
 \subsubsection{Value Noise}
 \label{value noise}
 
-\question{Shall I put this section in implementation or keep it here in preparation or maybe appendix?}
+\question{Shall I put this section in appendix?}
 
 Value noise is a fundamental concept in the field of procedural generation, particularly in the construction of fBm (Section \ref{construct fbm}). This section provides a detailed explanation of value noise.
 
-Let's denote the noise function as $N_k(\mathbf{x})$ for a point $\mathbf{x}$ in $k$-dimensional space. The function operates as follows:
+Let's denote the noise function as $N_k(\mathbf{P})$ for a point $\mathbf{P}$ in $k$-dimensional space. The function operates as follows:
 
 \begin{enumerate}
     \item \textbf{Grid Definition}: Define a grid over the $k$-dimensional space where each point $\mathbf{p}_i$ on the grid has an associated random value $v_i$. The distribution of $v_i$is usually uniform.
 
     \item \textbf{Value Assignment}: Assign a random value $v_i$to each grid point $\mathbf{p}_i$. These values are generated using a pseudo-random number generator and remain constant for a given seed.
 
-    \item \textbf{Interpolation}: For a point $\mathbf{x}$ not on the grid, identify the surrounding grid points $\{\mathbf{p_{i}\}}$ and interpolate the values $\{v_i\}$ at these points to calculate $N_k(\mathbf{x})$. The interpolation could be linear, cubic, or use other smoothing techniques, depending on the desired smoothness of the noise.
+    \item \textbf{Interpolation}: For a point $\mathbf{P}$ not on the grid, identify the surrounding grid points $\{\mathbf{P_{i}\}}$ and interpolate the values $\{v_i\}$ at these points to calculate $N_k(\mathbf{P})$. The interpolation could be linear, cubic, or use other smoothing techniques, depending on the desired smoothness of the noise.
     
     \begin{equation}
-        N(\mathbf{x}) = \text{Interpolate}(\{v_i\}, \{\mathbf{p}_i\}, \mathbf{x}) 
+        N(\mathbf{P}) = \text{Interpolate}(\{v_i\}, \{\mathbf{P}_i\}, \mathbf{P}) 
     \end{equation}
 \end{enumerate}
 
@@ -163,13 +165,13 @@ The rendering model of my project utilized ray marching as a per-pixel rendering
 Mathematically the camera ray can be expressed as:
 
 \begin{equation}
- \mathbf{R}(t) = \mathbf{O} + t\mathbf{CR} 
+ \mathbf{R}(t) = \mathbf{C} + t\mathbf{cr} 
 \end{equation}
 
 where:
 \begin{itemize}
-    \item $\mathbf{O}$ is the ray origin, which is the camera position in the scene
-    \item $\mathbf{CR}$ is the normalized direction vector pointing from the camera towards the pixel
+    \item $\mathbf{C}$ is the ray origin, which is the camera position in the scene
+    \item $\mathbf{cr}$ is the normalized direction vector pointing from the camera towards the pixel
     \item $t$ is the distance along the ray
 \end{itemize}
 
@@ -259,19 +261,19 @@ with $k_a$ being the ambient reflectivity of the surface and $I$ the intensity o
     
 \begin{equation}
 \label{diffuse}
-I_d = k_d \cdot (L \cdot N) \cdot I
+I_d = k_d \cdot (\mathbf{l} \cdot \mathbf{n}) \cdot I
 \end{equation}
 
-where $k_d$ is the diffuse reflectivity, $L$ is the normalized light vector, $N$ is the normalized surface normal, and $I$ is the light's intensity.
+where $k_d$ is the diffuse reflectivity, $\mathbf{l}$ is the normalized light vector, $\mathbf{n}$ is the normalized surface normal, and $I$ is the light's intensity.
     
 \paragraph{Specular Reflection} This simulates the bright spots of light that appear when light is reflected at specific angles, like on shiny surfaces. It is determined using the formula: 
 
 \begin{equation}
 \label{specular}
-I_s = k_s \cdot (R \cdot V)^n \cdot I
+I_s = k_s \cdot (\mathbf{r} \cdot \mathbf{v})^n \cdot I
 \end{equation}
 
-where $k_s$ is the specular reflectivity, $R$ is the reflection vector, $V$ is the view vector, and $n$ is the shininess coefficient which controls the size of the specular highlight.
+where $k_s$ is the specular reflectivity, $\mathbf{r}$ is the reflection vector, $\mathbf{v}$ is the view vector, and $n$ is the shininess coefficient which controls the size of the specular highlight.
 
 \subsubsection{Fresnel Reflectance}
 \label{Fresnel}
