@@ -5,9 +5,13 @@
 \usepackage[none]{hyphenat} % Disables hyphenation for the entire document. Words will no longer be split across multiple lines with hyphens
 \addbibresource{ref.bib} % Add bibliography from ref.bib 
 
-\begin{document}
+    % \textcolor{blue!70!black}{\textnormal{(Joe) #1}}
 
-% TC:ignore tells texcount to ignore word count until TC:endignore 
+\newcommand{\JM}[1]{\textcolor{blue!70!black}{\textnormal{(Joe) #1}}}
+
+
+
+\begin{document}
 
 %TC:ignore
 
@@ -72,7 +76,7 @@ I, Qiaozhi Lei of Fitzwilliam College, being a candidate for Part II of the Comp
   \end{tabular}
  }
 \footnotetext[1]{This word count was computed using {\texttt{texcount}}.}
-\footnotetext[2]{This code line count was computed using \todo{}}
+\footnotetext[2]{This code line count was computed using \todo{} \JM{I recommend cloc: https://github.com/AlDanial/cloc}}
 \stepcounter{footnote}
 
 \section*{Original Aims of the Project}
@@ -91,7 +95,7 @@ None.
 
 \newpage 
 
-\chapter*{Notation Conventions}
+\chapter*{Notational Conventions}
 
 Throughout this dissertation, I use the following notational conventions:
 
@@ -114,6 +118,10 @@ Key values:
     \item $\mathbf{sr}$: Sun ray direction.
     \item $\mathbf{c}$: Color. 
 \end{enumerate}
+
+Coordinate system:
+
+Throughout this work, a coordinate system where the y-axis points upwards is used for all spatial references and calculations.
 
 
 

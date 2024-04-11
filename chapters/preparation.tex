@@ -1,18 +1,22 @@
 \label{sec:Preparation}
 
-Following the workflow of the app shown in Figure \ref{pipeline}, this chapter covers background materials related to \textit{procedural generation techniques} (Section \ref{Procedural Generation}) for creating implicit representations of scenes, and \textit{rendering methods} (Section \ref{Rendering}) for these implicit representations. Additionally, the chapter explores shaders and Graphics Processing Unit (GPU) architecture (Section \ref{GPU}), crucial elements since procedural generation and rendering are performed using fragment shaders.
+Following the workflow of the app shown in Figure \ref{pipeline}, this chapter covers background materials related to \textit{procedural generation techniques} (Section \ref{Procedural Generation}) for creating implicit representations of scenes, and \textit{rendering methods} (Section \ref{Rendering}) for these implicit representations. Additionally, the chapter explores shaders and Graphics Processing Unit (GPU) architecture (Section \ref{GPU}), crucial elements since procedural generation and rendering are performed in fragment shaders.
 
-The chapter then describes the requirements (Section \ref{sec:Requirement}) and software engineering techiniques (Section \ref{sec:Software Engineering}).
+The chapter then describes the requirements (Section \ref{sec:Requirement}), software engineering techniques (Section \ref{sec:Software Engineering}).
 
 
 \myfigure{1.0}{pipeline}{H}
-{shows the simplified workflow of the app. First parameters are tuned in the GUI and sent to the fragment shaders as uniforms. Then the procedural generation stage utilizes the parameters to create implicit representation of the scene, which is then rendered using ray marching.}
+{
+% DONE
+% \JM{All non-rendered output figures should be stored in vector graphics formats e.g PDF or SVG.}
+% \todo{make every diagram svg}
+Illustrating the app's workflow: Parameters are adjusted in the GUI and passed to fragment shaders as uniforms. Next, these parameters drive the procedural generation stage, creating the scene's implicit representation, which is rendered through ray marching.}
 
 
 \section{Procedural Generation of Natural Environments}
 \label{Procedural Generation}
 
-This section provides background materials necessary for addressing the topic of procedurally generating and representing natural elements digitally. It starts by examining nature's properties and how Fractional Brownian Motion captures them, then moves on to discuss representing complex surfaces like terrains and clouds with implicit representations.
+This section provides background materials necessary for addressing the topic of procedurally generating and representing natural elements digitally. It starts by examining nature's properties and how fractional Brownian motion (fBm) captures them, then discusses representing complex surfaces like terrains and clouds with implicit representations.
 
 \subsection{Properties of Nature}
 \label{Properties of Nature}
@@ -25,9 +29,11 @@ To effectively procedurally generate nature, it's crucial to replicate this inte
 
 \subsection{Simulating the Properties of Nature}
 
-To simulate these properties, we first consider classical Brownian motion before moving to a more general model, fractional Brownian motion (fBm), which embodies randomness, self-similarity, and continuity.
+To simulate these properties, we first consider classical Brownian motion before moving to a more general model, fBm, which embodies randomness, self-similarity, and continuity.
 
 \subsubsection{Classical Brownian Motion}
+
+\question{Shall I cut some technical details here, since classical brownian motion isn't important to my project?} \JM{Probably, it fundamental to what you have done, but is well understood and the reader will likely be familiar with it. Make sure to cite relevant papers on the subject though (a bit difficult with concepts so old, but there will be a good review paper or something).}
 
 Classical Brownian motion, denoted as $B(t)$, serves as an essential model in the study of stochastic processes. It describes the random movement of particles with several key properties:
 
@@ -40,12 +46,12 @@ Classical Brownian motion, denoted as $B(t)$, serves as an essential model in th
 
 Although classical Brownian motion encapsulates elements of randomness and continuity, it lacks self-similarity, a property crucial for mimicking the fractal-like structures observed in nature. 
 
-\subsubsection{Fractal Brownian Motion}
+\subsubsection{fBm}
 \label{FBM}
 
-Fractional Brownian motion (fBm) generalises the classical Brownian motion model. It incorporates long-range dependence or memory,  by introducing the Hurst exponent, $H$, which ranges between 0 and 1. 
+fBm generalizes the classical Brownian motion model. It incorporates long-range dependence or memory,  by introducing the Hurst exponent, $H$, which ranges between 0 and 1. 
 
-The correlation of increments in fBm is directly influenced by the value of $H$. 
+The correlation of increments in fBm is directly influenced by $H$:
 \begin{itemize}
     \item When $0.5 < H < 1$, the increments exhibit positive correlation, indicating a trend where increases or decreases in the process are likely to be followed by similar movements.
     \item When $0 < H < 0.5$, the increments display negative correlation.
@@ -59,13 +65,14 @@ Therefore, fBm has the desired properties of randomness, self-similarity and con
 \subsubsection{Constructing fBm with Fractal Noises}
 \label{construct fbm}
 
-\question{Shall I put this section in implementation or keep it here in preparation?}
+\question{Shall I put this section in implementation or keep it here in preparation?} \JM{Yes, and the description possibly be trimmed a bit if you include a reference to the original implementation.}
+\todo{trim to a simple text description, and ref implementations}
 
-A method for constructing fBm is to use fractal noises, specifically combining multiple layers of smooth gradient noise such as value noise.
+A method for constructing fBm is to use fractal noises, specifically combining multiple layers of smooth gradient noise such as value noise (Section \ref{value noise}).
 
 \paragraph{Definition of layers}
 
-The construction process starts by defining $n \in \mathbb{Z}^+$ layers of value noise, each with a specific frequency, amplitude, rotation, and translation. Value noise, as a smooth pseudo-random function, is described in Section \ref{value noise}.
+The construction process starts by defining $n \in \mathbb{Z}^+$ layers of value noise, each with a specific frequency, amplitude, rotation, and translation. 
 
 The key parameters for layer $i$ are:
 
@@ -76,7 +83,7 @@ The key parameters for layer $i$ are:
     \item \textbf{Translation/Offset}: Indicated by a vector $\mathbf{o_i}$.
 \end{enumerate}
 
-\paragraph{Parameter adjustment}
+\paragraph{Parameter Adjustment}
 
 The frequency and amplitude for each layer are defined using constant multiplicative factors, $\alpha$ and $\beta$, respectively. This allows for the simpler expression of the frequency and amplitude for all layers in terms of the initial values $f_0$ and $a_0$:
 
@@ -89,32 +96,34 @@ Similarly, rotations and translations are defined using a consistent rotation ma
 
 \begin{align}
 \mathbf{R_i} = \mathbf{R}^i \\
-\mathbf{o_i} = \mathbf{o}^i
+\mathbf{o_i} = i\cdot\mathbf{o}
 \end{align}
 
-\paragraph{Summation of layers}
+\paragraph{Summation of Layers}
 
-The final construction of fBm is achieved through a point-wise summation of these layers. Let $N_k(\mathbf{P})$ represent the value of the k-dimensional noise function at point $\mathbf{P}$. The fBm $\text{fBm}_k(\mathbf{P})$ at point $\mathbf{P}$ is then given by:
+The final construction of fBm is achieved through a point-wise summation of these layers. Let $N_k(\mathbf{P})$ represent the value of the k-dimensional noise function at point $\mathbf{P}$. A n-layer fBm at point $\mathbf{P}$ is then given by:
 
 \begin{equation}
     \text{fBm}_k(\mathbf{P}) = \sum_{i=0}^{n} a_i \cdot N_k(f_i \cdot \mathbf{R}_i\mathbf{P} + \mathbf{o}_i)
 \end{equation}
 
-Here, $n$ denotes the total number of layers. The sum of these adjusted layers results in a noise field that embodies the essential characteristics of fBm -- the smooth gradient noise creates randomness and continuity and layering of the noises with different frequencies creates self similarity.
+The sum of these adjusted layers results in a noise field that embodies the essential characteristics of fBm -- the smooth gradient noise creates randomness and continuity, and layering noises with different frequencies creates self similarity.
 
 \subsubsection{Value Noise}
 \label{value noise}
 
 \question{Shall I put this section in appendix?}
+\JM{Or perhaps remove, the overall structure of you project is: random noise --- terrain construction + simulation  --- rendering of terrain. If you have to cut one of these for spatial reasons, cut the descriptions of random noise; it is a topic unto itself and not as important to discuss in this context (IMO).}
+\todo{put in appendix for now}
 
 Value noise is a fundamental concept in the field of procedural generation, particularly in the construction of fBm (Section \ref{construct fbm}). This section provides a detailed explanation of value noise.
 
 Let's denote the noise function as $N_k(\mathbf{P})$ for a point $\mathbf{P}$ in $k$-dimensional space. The function operates as follows:
 
 \begin{enumerate}
-    \item \textbf{Grid Definition}: Define a grid over the $k$-dimensional space where each point $\mathbf{p}_i$ on the grid has an associated random value $v_i$. The distribution of $v_i$is usually uniform.
+    \item \textbf{Grid Definition}: Define a grid over the $k$-dimensional space where each point $\mathbf{p}_i$ on the grid has an associated random value $v_i$. The distribution of $v_i$ is usually uniform.
 
-    \item \textbf{Value Assignment}: Assign a random value $v_i$to each grid point $\mathbf{p}_i$. These values are generated using a pseudo-random number generator and remain constant for a given seed.
+    \item \textbf{Value Assignment}: Assign a random value $v_i$ to each grid point $\mathbf{p}_i$. These values are generated using a pseudo-random number generator and remain constant for a given seed.
 
     \item \textbf{Interpolation}: For a point $\mathbf{P}$ not on the grid, identify the surrounding grid points $\{\mathbf{P_{i}\}}$ and interpolate the values $\{v_i\}$ at these points to calculate $N_k(\mathbf{P})$. The interpolation could be linear, cubic, or use other smoothing techniques, depending on the desired smoothness of the noise.
     
@@ -128,27 +137,27 @@ Let's denote the noise function as $N_k(\mathbf{P})$ for a point $\mathbf{P}$ in
 
 How can large/infinite complex surfaces such as terrains and clouds be represented? This section focuses on implicit representation as a key solution, and introduces two special types of  implicit representations: heightmaps and Signed Distance Fields (SDFs).
 
+\JM{'Introduces' is too strong of a word here; it is usually applied when a novel concept is proposed for the first time.}
+
 \subsubsection{Implicit Representation: A Solution for Complex Surfaces}
 
-In digital representation of 3D geometry, explicit methods like polygon meshes have traditionally been preferred, relying on vertices, edges, and faces to define surfaces. While well-supported in hardware and software, these methods face limitations with large or complex surfaces, leading to high storage and memory demands. Crucially, they also lack the ability to achieve infinite resolution, which is vital for rendering detailed and expansive landscapes.
+In digital representation of 3D geometry, explicit methods \JM{representations} like polygon meshes have traditionally been preferred, relying on vertices, edges, and faces to define surfaces. While well-supported in hardware and software, these methods face limitations with large or complex surfaces, leading to high storage and memory demands. Crucially, they also lack the ability to achieve infinite resolution, which is vital for rendering detailed and expansive landscapes.
 
-In contrast, implicit representation is a powerful alternative. At its core, an implicit equation is a relation in the form of $R(x_1,\dots,x_n)=0$, where $R$ is the implicit function. The solution space of a n-dimensional implicit equation describes the surface of an n-dimensional shape. This allows complex surfaces such as large or even infinite terrains to be defined using a single function. This approach significantly reduces memory and storage requirements compared to traditional mesh-based methods. Additionally, the sign of the implicit function indicates whether the point is inside or outside the surface (negative when inside), simplifying spatial determinations crucial for advanced rendering techniques, such as ray marching.
+In contrast, implicit \JM{surface} representation is a powerful alternative. At its core, an implicit equation is a relation in the form of $R(x_1,\dots,x_n)=0$, where $R$ is the implicit function. The solution space of a n-dimensional implicit equation describes the surface of an n-dimensional shape. This allows complex surfaces such as large or even infinite terrains to be defined using a single function. This approach significantly reduces memory and storage requirements compared to traditional mesh-based methods. Additionally, the sign of the implicit function indicates whether the point is inside or outside the surface (negative when inside), which is convenient for ray marching.
 
 \subsubsection{Heightmaps}
 \label{Heightmap}
 
-A heightmap $H(x,z)$ define the elevation $y$ of the terrain at each point $(x,z)$. This function is a scalar field, where each point in the field has a single value of elevation associated with it. The implicit equation representing terrain's geometry is expressed as:
+A heightmap $H(x,z)$ define the elevation $y$ of the terrain at each point $(x,z)$. This function is a scalar field, where each point in the field has a single value of elevation associated with it. The implicit equation representing terrain's surface is expressed as:
 
 \begin{equation}
 y - H(x,z) = 0
 \end{equation}
 
-\todo{mention somewhere the coordinate system in this project has y pointing upwards}
-
 \subsubsection{Signed Distance Functions}
 \label{SDF}
 
-Another potent implicit representation is the Signed Distance Function (SDF), symbolized as $S(x,y,z)$ in 3D space. For every point in space, the SDF assigns a value representing the shortest distance to the surface. Crucially, the sign of this value indicates whether the point is inside or outside the geometry. The implicit equation for an SDF-based terrain is simply:
+Another potent  implicit representation is the Signed Distance Function (SDF), symbolized as $S(x,y,z)$ in 3D space. For every point in space, the SDF assigns a value representing the shortest distance to the surface. Crucially, the sign of this value indicates whether the point is inside or outside the geometry. The implicit equation for an SDF-based terrain is simply:
 
 \begin{equation}
 S(x,y,z) = 0 
@@ -160,7 +169,7 @@ It's important to note that heightmaps and SDFs are distinct; while heightmaps a
 \section{Rendering}
 \label{Rendering}
 
-The rendering model of my project utilized ray marching as a per-pixel rendering technique. For every pixel on the screen, a ray, hereinafter referred to as the \textit{camera ray}, is emitted from the camera and directed towards the respective pixel. This process goes well naturally in the fragment shader, which can be run in parallel on the GPU.
+The rendering model of my project utilized ray marching as a per-pixel rendering technique. For every pixel on the screen, a ray, termed as the \textbf{camera ray}, is emitted from the camera and directed towards the respective pixel. This process goes well naturally in the fragment shader, which can be run in parallel on the GPU.
 
 Mathematically the camera ray can be expressed as:
 
@@ -170,47 +179,48 @@ Mathematically the camera ray can be expressed as:
 
 where:
 \begin{itemize}
-    \item $\mathbf{C}$ is the ray origin, which is the camera position in the scene
-    \item $\mathbf{cr}$ is the normalized direction vector pointing from the camera towards the pixel
-    \item $t$ is the distance along the ray
+    \item $\mathbf{C}$ is the ray origin, which is the world coordinates of the camera.
+    \item $\mathbf{cr}$ is the normalized direction vector pointing from the \JM{Use individual letters for symbols}camera towards the pixel.
+    \todo{change the notations globally}
+    \item $t$ is the distance along the ray.
 \end{itemize}
 
 For every pixel, the rendering process is:
 \begin{enumerate}
-    \item find the nearest intersection betwen the camera ray and scene objects
-    \item apply textures and lighting based on information at the point of intersection to produce the color of the pixel
+    \item find the nearest intersection between the camera ray and scene objects.
+    \item apply textures and lighting based on information at the point of intersection to produce the color of the pixel.
 \end{enumerate}
 
-Following this process, this section first introduces ray marching, which is employed to find intersections, and then describes some illumination adn shadow models used in this project.
+Following this process, this section first introduces ray marching, which is employed to find intersections, and then describes some illumination and shadow models used in this project.
 
 \subsection{Ray Marching SDFs}
 \label{Raymarching SDFs}
 
-One of the most efficient techniques for rendering scenes composed of SDFs is an algorithm known as Sphere Tracing (\todo{reference}). In this context, consider a camera ray $\mathbf{R}(t)$, and the scene is assumed to contain multiple SDFs, denoted as $\text{SDF}_1, \dots, \text{SDF}_n$.
+One of the most efficient techniques for rendering scenes composed of SDFs is an algorithm known as Sphere Tracing (\todo{CITE}). In this context, consider a camera ray $\mathbf{R}(t)$, and the scene is assumed to contain multiple SDFs, denoted as $\text{SDF}_1, \dots, \text{SDF}_n$.
 
-The core idea of Sphere Tracing is to iteratively move along the ray, incrementing the distance $t$ by the smallest distance to any surface in the scene. This distance is determined at each step as the minimum SDF value among all SDFs at the current point on the ray. The process is mathematically expressed as:
+The core idea of Sphere Tracing is to iteratively move along the ray, incrementing the distance $t$ by the smallest distance to any surface in the scene, as illustrated in Figure \ref{raymarch_sdf}. The process is expressed as:
 
 \begin{equation}
     t_{i+1} = t_{i} + \min_i(\text{SDF}_i(\mathbf{R}(t_i)))
 \end{equation}
 
-This process continues until the ray either exceeds a predefined maximum distance, $t_{max}$, or when a specified maximum number of steps is reached, suggesting no intersection within the scene's bounds. The process also terminates when the absolute value of the minimum SDF at the current ray position is less than a small threshold $\epsilon$, implying an intersection.
+This process continues until the ray either exceeds a predefined maximum distance, $t_{max}$, or when a specified maximum number of steps is reached, suggesting no intersection within the scene's bounds. The process also terminates when the absolute value of the minimum SDF at the current ray position is less than a small threshold $\epsilon$, implying an intersection:
 
 \begin{equation}
 |\min_{i}(\text{SDF}_i(\mathbf{R}(t_i)))| < \epsilon 
 \end{equation}
 
-This concept is crucial in the rendering of trees, as discussed in a section 3.\todo{}. Figure \ref{raymarch_sdf} illustrates the Sphere Tracing algorithm in action, where it finds the intersection between the camera ray and two SDFs. 
+This concept is crucial in the rendering of trees, as discussed in Section \ref{Tree Ray Marching}.
 
 \myfigure{0.7}{raymarch_sdf}{}
-{Illustration of Sphere Tracing for Ray Marching SDFs. The camera emits a ray that is iteratively advanced by the minimum distance to the surfaces of SDF 1 and SDF 2. The ray progresses until it closely approaches the boundary of SDF 2, indicating an intersection.}
+{Illustration of Sphere Tracing for Ray Marching SDFs. The camera emits a ray that is iteratively advanced by the minimum distance to the surfaces of SDF 1 and SDF 2. The ray progresses until it closely approaches the boundary of SDF 2, indicating an intersection. \JM{This figure should be smaller.} \todo{make smaller and inline on the right}}
 
 \subsection{Ray Marching Heightmaps}
 \label{Raymarching Heightmaps}
 
-When dealing with a single heightmap $H$, the Sphere Tracing algorithm is inapplicable since heightmaps are not SDFs. Here, a more rudimentary form of ray marching, termed the \textit{fixed-step ray marching algorithm}, is employed.
+When dealing with a heightmap $H$, the Sphere Tracing algorithm is inapplicable since heightmaps are not SDFs. Here, a more rudimentary form of ray marching, termed the \textbf{fixed-step ray marching algorithm}, is employed.
 
-This algorithm advances the ray with a constant step size, $\lambda$.  The process is mathematically expressed as:
+This algorithm advances the ray with a constant step size, $\lambda$:
 
 \begin{equation}
     t_{i+1} = t_{i} + \lambda
@@ -229,10 +239,10 @@ where:
     \item $t^\prime$ is the distance after interpolation.
 \end{itemize}
 
-This dissertation further explores numerous optimizations of this algorithm in section \ref{Terrain Raymarching}. Figure \ref{raymarch_terrain} illustrates the fixed-step ray marching algorithm in action, where it finds the intersection between the camera ray and a 1D heightmap.
+This dissertation further explores several optimizations of this algorithm in Section \ref{Terrain Raymarching}. Figure \ref{raymarch_terrain} illustrates the fixed-step ray marching algorithm in action, where it finds the intersection between the camera ray and a 1D heightmap.
 
 \myfigure{0.7}{raymarch_terrain}{}
-{Illustration of Fixed-step Ray Marching for Heightmaps. The camera emits a ray that is iteratively advanced by a constant distance to the surface of a terrain. The ray progresses until it goes below the terrain, followed by a linear interpolation.}
+{Illustration of Fixed-step Ray Marching for Heightmaps. The camera emits a ray that is iteratively advanced by a constant distance. The ray progresses until it goes below the terrain, followed by a linear interpolation.}
 
 
 \subsection{Illumination and Shadows}
@@ -241,7 +251,7 @@ This section outlines the process for computing the color of a pixel once an int
 
 In this project, the material colors are determined procedurally, which is be elaborated upon in \ref{Terrain Procedural Texturing}.
 
-The lighting aspect is explored through the Phong reflection model, considering Fresnel reflectance and shadows. Given the project's scope, a simplified lighting model suffices, ensuring clairty and efficiency.
+The lighting aspect is explored through the Phong reflection model, considering Fresnel reflectance and shadows. Given the project's scope, a simplified lighting model suffices, ensuring clarity and efficiency.
 
 \subsubsection{Phong Reflection Model}
 \label{Phong}
@@ -257,7 +267,7 @@ k_a \cdot I
 
 with $k_a$ being the ambient reflectivity of the surface and $I$ the intensity of ambient light.
 
-\paragraph{Diffuse Reflection} This accounts for the direct light scattering that happens when light hits rough surfaces. This scattering causes the light to reflect evenly in all directions. It's calculated using Lambert’s cosine law: 
+\paragraph{Diffuse Reflection} This accounts for the direct light scattering that happens when light hits rough surfaces. This scattering causes the light to reflect evenly in all directions. It's calculated using Lambert’s cosine law \todo{CITE}: 
     
 \begin{equation}
 \label{diffuse}
@@ -283,7 +293,7 @@ The Fresnel Reflection principle describes how the amount of light reflected by 
 The Fresnel equations provide a way to calculate the reflection coefficient, which determines the ratio of reflected light at different angles of incidence. In its simplest form, applicable to non-conducting materials, the Fresnel reflectance at normal incidence can be represented as:
 
 \begin{equation}
-F = \left( \frac{n_1 - n_2}{n_1 + n_2} \right)^2
+F_0 = \left( \frac{n_1 - n_2}{n_1 + n_2} \right)^2
 \end{equation}
 
 where $n_1$ and  $n_2$ are the refractive indices of the medium from which the light is coming and the medium it is entering, respectively.
@@ -295,9 +305,9 @@ In computer graphics, a common approximation of the Fresnel Effect is the Schlic
 F(\theta) = F_0 + (1 - F_0)(1 - \cos(\theta))^5
 \end{equation}
 
-where $F_0$  is the reflectance at normal incidence (calculated from the indices of refraction), and  $\theta$  is the angle between the view direction and the normal to the surface.
+where $\theta$  is the angle between the view direction and the normal to the surface.
 
-Incorporating Fresnel Reflection into rendering algorithms significantly enhances the realism of materials, especially noticable in materials like water. 
+Incorporating Fresnel Reflection into rendering algorithms enhances the realism of materials, especially noticeable in materials like water. 
 
 \subsubsection{Shadows}
 \label{Shadows}
@@ -307,6 +317,10 @@ The simplest shadow calculation is the binary determination of whether light rea
 
 \paragraph{Soft Shadows}
 In reality, shadows often exhibit soft edges due to the extended size of light sources, like the Sun. Soft shadows display an \textbf{umbra}, the darker core where light is completely blocked, and a \textbf{penumbra}, the lighter area where the light is partially obscured.
+
+\question{Shall I leave the method below for implementation? It seems redundant to reiterate variations of this algorithm in shadows for terrain and trees.}
+\JM{Yes, and it can likely be shortened quite a bit }
+\todo{trim to a simple text description, and ref implementations}
 
 One commonly used method involves modifying the shadow ray's contribution based on the minimum distance to the scene geometry along its path. Here's a standard approach (\todo{cite}):
 
@@ -333,27 +347,30 @@ One commonly used method involves modifying the shadow ray's contribution based 
 Figure \ref{shadow} showcases the soft shadow calculations for two intersections in an example scene, where one intersection lies in the penumbra region, and the other lies in the umbra region.
 
 \myfigure{0.5}{shadow}{}
-{Illustration of soft shadow calculations in a simple example scene. For the point in the penumbra region, its shadow ray doesn't intersect with any scene objects. The minimum distance $d_{\text{min}}$ is incurred at $P_2$. For the point in the umbra region, its shadow ray intersects with a scene object.}
+{Illustration of soft shadow calculations in a simple example scene. For the point in the penumbra region, its shadow ray doesn't intersect with any scene objects. The minimum distance $d_{\text{min}}$ is incurred at $\mathbf{P}_2$.
+\JM{This figure can be made smaller, try to match the text size to that of the document}
+\todo{make figure smaller and inline on the right}
+}
 
 
 \section{Shader Execution}
 \label{GPU}
 
-Unlike traditional programming executed on the Central Processing Unit (CPU), shader programs are executed on the Graphics Processing Unit (GPU). This execution model leverages the GPU’s architecture, which is designed for parallel processing, featuring hundreds or thousands of small processing cores. These cores are grouped into larger units, often called streaming multiprocessors (SMs) or compute units (CUs). The architecture is detailed in \ref{gpu_architecture}.
+Unlike traditional programming executed on the Central Processing Unit (CPU), shader programs are executed on the Graphics Processing Unit (GPU). This execution model leverages the GPU’s architecture, which is designed for parallel processing, featuring hundreds or thousands of small processing cores. These cores are grouped into larger units, often called streaming multiprocessors (SMs) or compute units (CUs). The architecture is detailed in Figure \ref{gpu_architecture}.
 
-In graphics pipelines, there are several types of shaders, each serving a specific purpose:
+In graphics pipelines, there are several types of shaders:
 \begin{itemize}
     \item \textbf{Vertex Shaders}: Process vertex data and determine vertex positions in screen space.
     \item \textbf{Fragment (or Pixel) Shaders}: Calculate the color and other attributes of each pixel.
-    \item \textbf{Geometry Shaders}: Generate geometry from vertices.
+    \item Geometry shaders and computer shaders are not used in this project.
 \end{itemize}
 
-In this project, the majority of the procedural generation and rendering processes are implemented in \textbf{fragment shaders}.
+In this project, the procedural generation and rendering processes are implemented in \textbf{fragment shaders}.
 
-\paragraph{Workload distribution}
-When a scene is being rendered, it's divided into fragments. The GPU's control unit assigns groups of these fragments (often in a grid pattern, such as 2x2 "pixel-quads") to the different processing cores. This distribution ensures that the workload is balanced across the GPU's cores. This process is detailed in Figure \ref{gpu_architecture}.
+\paragraph{Workload Distribution}
+When a scene is being rendered, it is divided into fragments. The GPU's control unit assigns groups of these fragments (often in a grid pattern, such as 2x2 ``pixel-quads") to the different processing cores. This distribution ensures that the workload is balanced across the GPU's cores. This process is detailed in Figure \ref{gpu_architecture}.
 
-\paragraph{Efficient parallelisation}
+\paragraph{Efficient Parallelisation}
 Many GPU architectures use a SIMD(Single Instruction, Multiple Data) approach. In this model, each core executes the same instruction at the same time but on different data (fragments). This is efficient for fragment shaders because each fragment often undergoes similar processing.
 
 \myfigure{1.0}{gpu_architecture}{}
@@ -365,58 +382,60 @@ Many GPU architectures use a SIMD(Single Instruction, Multiple Data) approach. I
 The project’s success criteria (Appendix \todo{ref}) forms the requirements:
 
 \begin{itemize}
-    \item Achieve real-time raymarched rendering of natural terrains, encompassing shadows, shading, and colouring. Submit screen recordings showcasing the rendered outcomes to highlight the real-time performance capabilities.
-    \item Attain realistic detailing in the terrains, including features like foliage and rocks, complemented by an authentic backdrop of clouds and sky.
-    \item Develop a desktop application that offers camera controls, allows real-time hyperparameter adjustments, and supports saving and loading of hyperparameters in an accessible plain-text format.
+    \item Achieve real-time ray marched rendering of procedurally generated natural terrains, encompassing shadows, shading, and coloring. Submit screen recordings showcasing the rendered outcomes to highlight the real-time performance capabilities.
+    \item Attain realistic detailing in the terrains, complemented by an authentic backdrop of clouds and sky.
+    \item Develop a desktop application that offers camera controls, allows real-time parameter adjustments, and supports saving and loading of parameters.
 \end{itemize}
 
 \subsection{MoSCow Analysis}
 
-I then conducted MoSCow analysis to refine the requirements into deliverables and give priorities to the deliverables, as detailed in Table \ref{deliverable_table}. Core deliverables are in the Must-Have category, while extensions are in the Should-Have or Could-Have cateogries. 
+I then conducted \textbf{MoSCow analysis} (Must have, Should have, Could have, Won't have this time) to refine the requirements into deliverables and give priorities to the deliverables, as detailed in Table \ref{deliverable_table}. Core deliverables are in the Must-Have category, while extensions are in the Should-Have or Could-Have categories. 
 
 \figureastable{1.0}{deliverable_table}{}
-{lists all project deliverables. The deliverables are split into 4 types, based on the success criteria.}
+{Outlining project deliverables, categorized into four types according to the success criteria.}
 
 \section{Software Engineering Tools and Techniques}
 \label{sec:Software Engineering}
 
-\paragraph{Development model}
+\paragraph{Development Model}
 I adopted the Agile methodology, with its emphasis on iterative and incremental development. I broke each deliverable down into smaller tasks, and managed them in a Kanban board, organized by stages of development. This not only facilitated better organization but also allowed for continuous delivery and ongoing improvements based on feedback and experimental results.
 
-\paragraph{Libraries and language}
-I chose OpenGL as the graphics interface due to its relative ease of setup. Since the majority of the project is implemented in fragment shaders, I did not need to extensively modify the rendering pipeline. GLSL, integral to OpenGL, was the choice of the shader language. Its C-like syntax and comprehensive documentation made it easy for me to pick up and start working with shaders.
+\question{Shall I include a screenshot for the Kanban board?}
 
-\paragraph{Testing strategy}
-The project's extensive use of GLSL (OpenGL Shading Language) brought unique challenges, notably the scarcity of testing frameworks, debuggers and general functionalities. To counter this, I employed various methods to aid in testing and debugging. By incorporating color-coding techniques akin to heat maps, I could visualize quantities such as depth and normals. Additionally, I created visual "gizmos" like lines and circles to aid in the debugging process. The app's user interface allowed seamlessly switching between different rendering targets, enabling the display of diverse debugging visuals on demand. I made sure to test each individual feature thoroughly this way before integration with other features.
+\paragraph{Libraries and Language}
+I chose OpenGL as the graphics interface due to its relative ease of setup. Since the majority of the project is implemented in fragment shaders, I did not need to extensively modify the rendering pipeline. GLSL (OpenGL Shading Language), integral to OpenGL, was the choice of the shader language. Its C-like syntax and comprehensive documentation made it easy for me to pick up and start working with shaders.
+
+\paragraph{Testing Strategy}
+The project's extensive use of GLSL brought unique challenges, notably the scarcity of testing frameworks, debuggers and general functionalities. To counter this, I employed various methods to aid in testing and debugging. By incorporating color-coding techniques akin to heat maps, I could visualize quantities such as depth and normals. Additionally, I rendered visual ``gizmos" like lines and circles in shaders to aid in the debugging process. The app's user interface allowed seamlessly switching between different rendering targets, enabling the display of diverse debugging visuals on demand. I made sure to test each individual feature thoroughly this way before integration with other features.
 
 \paragraph{Import in GLSL}
 To address the lack of import functionality in GLSL, I wrote a custom preprocessor in C++. This allowed me to maintain modular shader files, preventing the codebase from becoming an unwieldy monolith. I included a shader dependency graph in Figure \ref{dependency} to demonstrate the organization of the shader files.
 
-\paragraph{Code styling}
-I paid careful attention to naming conventions across the C++ and GLSL codebases, opting for snake case for functions and variables, and Pascal case for classes and namespaces. This consistency, coupled with specific prefixes and suffixes for variable types (such as "in" and "out" parameters in GLSL), enhanced code readability and maintainability. Considering the limited GLSL syntax highlighting in IDEs, I leveraged these naming conventions to implement custom syntax highlighting using regular expressions.
+\paragraph{Code Styling}
+I paid careful attention to naming conventions across the C++ and GLSL codebases, enhanced code readability and maintainability. Considering the limited GLSL syntax highlighting in IDEs, I leveraged these naming conventions to implement custom syntax highlighting using regular expressions.
 
-\paragraph{Version control and backup}
+\paragraph{Version Control and Backup}
 I utilized Git for version control and GitHub as a remote repository for backup. I made sure to make regular commits and pushes.
 
 \myfigure{1.0}{dependency}{}
-{dependency graph for all the shader files in the project. A $\rightarrow$ B means A imports B.}
+{Dependency graph of shader files in the project, where A $\rightarrow$ B denotes ``A imports B".}
 
 \section{Software License}
 \label{sec:License}
 
 Table \ref{tools_table} catalogs the licenses for all the tools and libraries utilized in this project.
 
-The MIT license was chosen for this project due to its simplicity, permissiveness and compatibility. It allows others to freely use, modify, and distribute the software while providing protection from liability.
+The \textbf{MIT license} was chosen for this project due to its simplicity, permissiveness and compatibility. It allows others to freely use, modify, and distribute the software while providing protection from liability.
 
 
 \section{Starting Point}
 \label{sec:Starting Point}
 
-\paragraph{Libaries and tools}
-My project utilized a selection of pre-existing libraries, as detailed in Table \ref{tools_table}. Aside from these libraries, the project was developed from scratch, with particular attention given to the GLSL fragment shaders I wrote, which did not utilize any external libraries.
+\paragraph{Libraries and Tools}
+My project utilized a selection of pre-existing libraries, as detailed in Table \ref{tools_table}. Aside from these libraries, the project was developed from scratch. 
 
-\paragraph{Prior experience}
-I had prior experience with OpenGL wrapper libraries, gained through the "Introduction to Graphics" course and a past internship, although my direct experience with OpenGL is limited. I had worked with C++, Dear ImGui and CMake in a previous summer internship. While I had some exposure to HLSL through "Introduction to Graphics", my experience with GLSL prior to this project was nonexistent.
+\paragraph{Prior Experience}
+I had prior experience with OpenGL wrapper libraries, gained through the ``Introduction to Graphics" course and a past internship, although my direct experience with OpenGL is limited. I had worked with C++, Dear ImGui and CMake in a previous internship. While I had some exposure to HLSL through ``Introduction to Graphics", my experience with GLSL prior to this project was minimal.
 
 \figureastable{1.0}{tools_table}{}
 {Overview of purposes and licenses for utilized tools and libraries in the project.}

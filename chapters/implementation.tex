@@ -1,10 +1,10 @@
 \label{sec:3}
 
-The app's workflow, as shown in Figure \ref{pipeline}, consists of three main stages: user interface (UI), procedural generation, and rendering
+The app's workflow, as shown in Figure \ref{pipeline}, consists of three main stages: user interface (UI), procedural generation, and rendering.
 
 Given the project's scope -- encompassing the generation and rendering of multiple natural elements -- it is practical to discuss the procedural generation and rendering of each element individually, treating UI as a distinct subject.
 
-The chapter begins with an overview of the implementation, followed by detailed sections on each natural element: terrain, trees, water, clouds, and the atmosphere. Finally, it discusses input handling, the user interface, and how the app was extended to project procedural terrain onto a sphere to generate planets.
+The chapter begins with an overview of the implementation, followed by detailed sections on each natural element: terrain, trees, water, clouds, and the atmosphere. Finally, it discusses input handling, the UI, and how the app was extended to project procedural terrain onto a sphere to generate planets.
 
 \section{Implementation Overview}
 \label{Implementation Overview}
@@ -15,35 +15,32 @@ This chapter outlines the core architecture of the app, focusing on the executio
 
 Central to the ray marching rendering approach is the use of a \textbf{screen quad}. In this project, since both geometry and rendering processes are encapsulated within the fragment shader, only a basic quad covering the entire screen is necessary. This screen quad, essentially a simple rectangle spanning the viewport, acts as the canvas on which all scene elements are rendered.
 
-The application pipeline in OpenGL, following the flowchart in Figure \ref{pipeline_order}, is structured as follows:
+The application pipeline in OpenGL, following the flowchart in Figure \ref{pipeline_order}, is implemented in C++ and structured as follows:
 \begin{enumerate}
     \item \textbf{Initialization}: The setup involves creating a window using GLFW, initializing OpenGL, and preparing a Vertex Buffer Object (VBO) and an Element Buffer Object (EBO) for the screen quad. The screen quad vertices and indices are predefined constants.
     \item \textbf{Shader Compilation}: This step includes preprocessing includes and compiling shaders, complete with error reporting.
-    \item \textbf{Render Loop}: The main loop encompasses rendering the screen quad, handling user inputs for interactive elements and camera movement, and updating the UI to reflect changes in uniforms sent to the GPU.
+    \item \textbf{Render Loop}: The main loop encompasses rendering the screen quad, handling user inputs for interactive elements and camera movement, and sending parameters as uniforms to the GPU.
 \end{enumerate}
 
 \myfigure{0.7}{pipeline_order}{}
-{Outlines the execution order of the application pipeline.}
-
-Notably, all procedural generation and rendering are executed within fragment shaders, which are responsible for rendering the screen quad. The rest of the pipeline stages are managed through C++.
+{Outlines the execution order of the application pipeline.
+\todo{Make the diagram smaller and inline on the right}
+\JM{Make smaller, like fig 2.4}}
 
 \subsection{Shader Execution Order}
 
-The primary focus is on the fragment shader, as the vertex shader performs only minimal functions
+The primary focus is on the fragment shader.
 
 It is worth noting that while procedural generation is a distinct stage in the conceptual workflow, in practice, it occurs \textbf{implicitly} within the implementation. The geometry is defined by implicit functions, which are in turn determined by various parameters. Once these parameters are set, the procedural generation phase is effectively complete. Therefore, the focus of the fragment shader’s execution order is on the rendering aspects of the scene.
 
 For flat, infinite worlds, following the flowchart in Figure \ref{shader_order}, the shader operates in this sequence:
 \begin{enumerate}
     \item Compute camera and sun rays.
-    \item Perform raymarching to detect intersections with terrain, trees, or water.
-    \item Render the intersected object (terrain, tree, or water).
-    \item For pixels without intersections:
-        \begin{enumerate}
-            \item Render the sun disk.
-            \item Render clouds (two layers: 3D below, 2D above).
-        \end{enumerate}
+    \item Perform ray marching and render terrain and trees.
+    \item For pixels with an intersection with terrain or trees, determine the intersection with the water surface and render the water.
+    \item For pixels without intersections, render the sun disk.
     \item Simulate atmospheric Rayleigh scattering for each pixel, resulting in atmospheric perspective effects for intersected pixels, and determining the sky color for pixels without intersections.
+    \item Render clouds (two layers: 3D below, 2D above).
 \end{enumerate}
 
 \myfigure{0.8}{shader_order}{}
@@ -85,7 +82,7 @@ In this project, the \textbf{sun ray}, $\mathbf{sr}$, is the normalized vector f
 
 In simulating realistic lighting, the sun is treated as a directional light source due to its immense distance from Earth. This assumption implies that the sun's rays are parallel at every point in the world, sharing a common direction.
 
-The sun ray's direction is represented using spherical coordinates, which offer a convenient method to define the direction in 3D space using only two parameters: azimuth ($\phi$) and elevation ($\theta$). These parameters are adjustable in the user interface, allowing run-time changes to the sun ray.
+The sun ray's direction is represented using spherical coordinates, which offer a convenient method to define the direction in 3D space using only two parameters: azimuth ($\phi$) and elevation ($\theta$). These parameters are adjustable in the UI, allowing run-time changes to the sun ray.
 
 The spherical coordinates $\phi$ and $\theta$ are used in the following manner to compute $\mathbf{sr}$:
 
@@ -95,8 +92,6 @@ The spherical coordinates $\phi$ and $\theta$ are used in the following manner t
 
 This vector is a critical component for lighting calculations in the rendering process.
 
-\textit{Following these foundational concepts, the subsequent sections detail each step of the shader execution process and delve into the specifics of rendering each natural element.
-}
 
 \section{Terrain}
 \label{Terrain}
@@ -144,7 +139,7 @@ To generate a heightmap (Section \ref{Heightmap}) for terrain, we utilize the pr
     H(x,z) = v\cdot\text{fBm}_{2}(\frac{(x,z)}{h})
 \end{equation}
 
-where $v$ represents a vertical scaling factor, and $h$ is a horizontal scaling factor, aiding in controlling the terrain's scale dimensions. Algorithm \ref{algo:fbm} is employed for the 2D fBm, $\text{fBm}_{2}$, implementation. Parameters such as $n$, $\text{initial\_params}$, and $\text{adjustment\_factors}$ are made adjustable in the application's user interface, as shown in Figure \ref{combined_3D}.
+where $v$ represents a vertical scaling factor, and $h$ is a horizontal scaling factor, aiding in controlling the terrain's scale dimensions. $\text{fBm}_{2}$ is implemented by Algorithm \ref{algo:fbm}. Parameters for the fBm are made adjustable in the application's UI, as shown in Figure \ref{combined_3D}.
 
 \myfigure{0.7}{local_heightmap}{}
 {The image on the right shows a heightmap generated from fBm. The image on the left shows the associated terrain.}
@@ -155,7 +150,7 @@ The generated terrain, despite being infinite, lacks \textbf{variety}, typically
 
 \subsubsection{Dual Heightmap}
 
-To inject diversity into the terrain, I introduce a dual heightmap system:
+To make the terrain more varied, I introduce a dual heightmap system:
 
 \begin{enumerate}
     \item \textbf{Local Heightmap} ($H_{l}$): Utilizes fBm with higher frequencies to detail terrain on a smaller scale.
@@ -170,10 +165,10 @@ H(x,z) = H_{g}(x,z) + \text{normalize}(H_{g}(x,z))\times H_{l}(x,z)
 
 This equation ensures:
 
-\begin{enumerate}
+\begin{itemize}
     \item The \textbf{addition} of $H_{g}(x,z)$ establishes the general terrain contour.
     \item The \textbf{multiplication} by $\text{normalize}(H_{g}(x,z))$ modulates the impact of $H_{l}(x,z)$, influencing the terrain's rockiness or ruggedness. Lower values of $H_{g}$ lead to gentler terrain, while higher values induce more pronounced elevation changes, akin to mountainous or rocky landscapes.
-\end{enumerate}
+\end{itemize}
 
 In summary, the dual heightmap approach effectively blends local details with global terrain contours to create diverse and realistic landscapes, as clearly depicted in the Figure \ref{combined_heightmap} and \ref{combined_3D} for comparison.
 
@@ -188,23 +183,23 @@ In summary, the dual heightmap approach effectively blends local details with gl
 
 To create terrain with natural variation, my project applies \textbf{domain distortion}, adding unique and realistic features to the landscape. Domain distortion operates by modifying the input domain of a function before evaluation. For a given function $f(x)$, the domain is first distorted by a function $g(x)$, yielding $f(g(x))$ instead of the $f(x)$.
 
-For the heightmap of the terrain, such distortion must be spatially varied to produce interesting results and continuous to avoid abrupt changes. This is achieved by incorporating a secondary 2D fBm (Section REF) $\text{fBm}^\prime_2$, leading to the modified heightmap expression:
+For the heightmap of the terrain, such distortion must be spatially varied to produce interesting results and continuous to avoid abrupt changes. This is achieved by incorporating a secondary 2D fBm, $\text{fBm}^\prime_2$, leading to the modified heightmap expression:
 
 \begin{equation}
     H_l(x,z) = v\cdot\text{fBm}_{2}\left(\frac{x,z}{h}+\gamma\cdot\text{fBm}^\prime_2(x,z)\right)
 \end{equation}
 
-where $\gamma$ is the distortion magnitude, and $\text{fBm}^\prime_2$ utilizes distinct parameters. They are all adjustable via the application’s user interface.
+where $\gamma$ is the distortion magnitude, and $\text{fBm}^\prime_2$ utilizes distinct parameters. They are all adjustable via the application’s UI.
 
-This approach is grounded in the principle that natural landscapes are rarely uniform. They are sculpted by an array of processes such as erosion, sedimentary deposition, and tectonic activities. Domain distortion through $\text{fBm}^\prime_2$ gives the generated terrain variations that mimic these geological phenomena. The use of fBm is particularly advantageous as it layers noises of varying frequencies and amplitudes; lower frequencies mimic large-scale geological shifts, while higher frequencies emulate smaller-scale details like erosion. This multi-scale noise application is visually demonstrated in Figure \ref{distortion_scale}.
+This approach is grounded in the principle that natural landscapes are rarely uniform. They are sculpted by an array of processes such as erosion, sedimentary deposition, and tectonic activities. Domain distortion through $\text{fBm}^\prime_2$ gives the generated terrain variations that mimic these geological phenomena. The use of fBm is particularly advantageous as it layers noises of varying frequencies and amplitudes; lower frequencies mimic large-scale geological shifts, while higher frequencies emulate smaller-scale details like erosion. This multi-scale noise application is demonstrated in Figure \ref{distortion_scale}.
 
 \myfigure{0.6}{distortion_scale}{}
 {Lower frequencies mimic large-scale geological shifts, while higher frequencies emulate smaller-scale details like erosion.}
 
-Choosing suitable parameter values for domain distortion is key.  Figure \ref{distortion_heightmap} displays how varying the distortion magnitude, $\gamma$, impacts the heightmap. While fine-tuning these parameters encourages the emergence of natural-looking terrains, pushing the parameters beyond typical ranges can yield intriguing, alien landscapes, as depicted in Figure \ref{alien}.
+Choosing suitable parameter values for domain distortion is key. Figure \ref{distortion_heightmap} displays how varying the distortion magnitude, $\gamma$, impacts the heightmap. While fine-tuning these parameters encourages the emergence of natural-looking terrains, pushing the parameters beyond typical ranges can yield intriguing, alien landscapes, as depicted in Figure \ref{alien}.
 
 \myfigure{1.0}{distortion_heightmap}{}
-{Impact of Varying Distortion Magnitude $\gamma$ on Heightmap Detail}
+{Impact of Varying Distortion Magnitude $\gamma$ on a Heightmap}
 
 \myfigure{0.4}{alien}{}
 {Exotic Terrain Features Generated by Domain Distortion}
@@ -219,9 +214,9 @@ In the ray marching process for terrain rendering, I have implemented improvemen
 By halting the ray marching process under certain conditions, computational load can be reduced. In my implementation, the process terminates if:
 
 \begin{enumerate}
-    \item \textbf{Distance Exceeds Maximum:} The marched distance surpasses a predefined maximum distance, $d_{\text{max}}$.
-    \item \textbf{Step Count Exceeds Limit:} The number of steps exceeds the maximum allowed, denoted as $N$.
-    \item \textbf{Ray Height Above Maximum Terrain Height:} If a sample point's height exceeds the maximum terrain height (including trees), $y_{\text{max}}$, and the camera ray is ascending ($\mathbf{cr}.y > 0$), the ray marching process terminates. This is based on the understanding that no intersection will occur if the ray is moving away from the terrain.
+    \item The marched distance surpasses a predefined maximum distance, $d_{\text{max}}$.
+    \item The number of steps exceeds the maximum allowed, denoted as $N$.
+    \item If a sample point's height exceeds the maximum terrain height (including trees), $y_{\text{max}}$, and the camera ray is ascending ($\mathbf{cr}.y > 0$), the ray marching process terminates. This is based on the understanding that no intersection will occur if the ray is moving away from the terrain.
 \end{enumerate}
 
 \paragraph{Dynamic step size}
@@ -229,7 +224,7 @@ By halting the ray marching process under certain conditions, computational load
 The step size in ray marching is dynamically adjusted based on two factors:
 
 \begin{enumerate}
-    \item \textbf{Distance-Based Scaling}: The step size linearly increases with the distance already marched, aligning with the Level of Detail (LOD) concept. Farther objects can have less detail without significantly impacting the visual quality. The step size for the $i$th step, $s_i$, is defined as:
+    \item The step size linearly increases with the \textbf{distance} already marched, aligning with the Level of Detail (LOD) concept. Farther objects can have less detail without significantly impacting the visual quality. The step size for the $i$th step, $s_i$, is defined as:
 
    \begin{equation}
    s_{i} = a + b \cdot d_i
@@ -237,7 +232,7 @@ The step size in ray marching is dynamically adjusted based on two factors:
    
    where $a$ and $b$ are adjustable parameters, and $d_i$ is the distance marched to the $i$th point.
 
-    \item \textbf{Height-Based Scaling}: The step size also scales with the height above the terrain. This heuristic allows faster traversal of areas far from the terrain. The modified step size is:
+    \item The step size also scales with the \textbf{height} above the terrain. This heuristic allows faster traversal of areas far from the terrain. The modified step size is:
     \begin{equation}
     s_{i} = a + b \cdot d_{i} + c \cdot (\mathbf{P}_i.y - H(\mathbf{P}_i.xz))
     \end{equation}
@@ -270,7 +265,8 @@ The final stage in the ray marching process involves refining the intersection p
 \end{algorithm}
 
 \myfigure{0.8}{bs}{}
-{Comparing linear interpolation and binary search for terrain intersections. The right diagram shows a 2-step binary search, where $\mathbf{M}_1$ is below the terrain, leading to $\mathbf{M}_2$ being the midpoint between $\mathbf{P}_2$ and $\mathbf{M}_1$.}
+{Comparing linear interpolation and binary search for terrain intersections. The right diagram shows a 2-step binary search, where $\mathbf{M}_1$ is below the terrain, leading to $\mathbf{M}_2$ being the midpoint between $\mathbf{P}_2$ and $\mathbf{M}_1$. \JM{The algorithm seems unnecessary here; it is quite simple and also dmescribed in the text.}}
+\todo{remove algo}
 
 
 
@@ -282,10 +278,10 @@ In my project, the terrain is categorized into \textbf{four distinct elevation-b
 \myfigure{0.7}{4regions}{}
 {Cross-sectional representation of terrain illustrating the four elevation-based regions: mud, sand, grass, and rock. Striped textures are applied to steep areas.}
 
-\paragraph{Smooth boundaries}
-The elevation thresholds separating these regions are denoted as $h_{1} < h_{2} < h_{3}$. Rather than using rigid boundaries, each threshold incorporates a variation $\pm \delta_i$ to facilitate smooth transitions. This is achieved through the application of the $\text{smoothstep}$ function, allowing for gradual interpolation between regions.
+\paragraph{Smooth Boundaries}
+The elevation thresholds separating these regions are denoted as $h_{1} < h_{2} < h_{3}$. Rather than using rigid boundaries, each threshold incorporates a variation $\pm \delta_i$ to facilitate smooth transitions. This is achieved by using the $\text{smoothstep}$ function to interpolate between regions.
 
-\paragraph{Dynamic boundaries}
+\paragraph{Dynamic Boundaries}
 To enhance realism and avoid monotonous separation at fixed elevations, a 2D fBm function offsets these boundaries. Consequently, at any point $\mathbf{P}$, the modified boundary is expressed as:
 
 \begin{equation}
@@ -295,18 +291,18 @@ To enhance realism and avoid monotonous separation at fixed elevations, a 2D fBm
 This dynamic boundary adjustment is demonstrated in action in Figure \ref{region_transition}.
 
 \myfigure{0.4}{region_transition}{}
-{Demonstrates smooth and dynamic boundary adjustments.}
+{Demonstrates smooth and dynamic boundary adjustments between regions.}
 
-\paragraph{The grass region}
-In the grass region, coverage is determined by the slope's steepness, assessed via the y-component of the surface normal. A predefined threshold controls where grass appears: only on surfaces where this y-component is below the threshold, indicating flatter regions, grass is rendered. Interpolation is used to ensure smooth transition. This method ensures grass only populates gentler slopes, contributing to a more realistic and varied landscape appearance.
+\paragraph{The Grass Region}
+In the grass region, coverage is determined by the slope's steepness. A predefined threshold controls where grass appears: only on surfaces where the normal's y-component is below the threshold, indicating flatter regions, grass is rendered. Interpolation is used to ensure smooth transition. 
 
 Variation in the grass region is introduced by altering the coloration. By evaluating another 2D fBm on a point's xz coordinates, I smoothly transition between two distinct grass colors via interpolation. This method provides a more dynamic and visually appealing representation of grassy areas, as depicted in Figure \ref{grass}, which showcases the color-varied grass.
 
 \myfigure{0.8}{grass}{}
 {Aerial Perspective of the Color-Varied Grass Region. The left image displays the terrain with natural grass color variation, while the right image, in high-contrast black and white, emphasizes these variations for clearer visualization.}
 
-\paragraph{Striped rock texture}
-In steep areas, I have procedurally generated a rock texture resembling striped patterns found on mountains. This effect is created by horizontally stretching noise, producing stripe-like but non-uniform patterns. The degree of texture visibility is controlled by interpolating between the textured appearance and the rock's base color using the y-component of the normal. This ensures that stripes are prominent in steep regions, with a seamless transition to standard rock texture on less inclined surfaces. For texture mapping, the point's xy components are utilized as UV coordinates, reflecting the steep orientation. Figure \ref{stripe} illustrates this process.
+\paragraph{Striped Rock Texture}
+In steep areas, I have procedurally generated a rock texture resembling striped patterns found on mountains, as illustrated in Figure \ref{stripe}. This effect is created by horizontally stretching noise, producing stripe-like but non-uniform patterns. The degree of texture visibility is controlled by interpolating between the textured appearance and the rock's base color using the y-component of the normal. This ensures that stripes are prominent in steep regions, with a seamless transition to standard rock texture on flatter surfaces. Considering that the texture only appears on steep regions, I used the point's xy components as UV coordinates for texture sampling. 
 
 \myfigure{0.8}{stripe}{}
 {The left image displays the application of a striped pattern texture across the terrain. The right image illustrates the effect of interpolating this texture with the steepness of the terrain, resulting in the striped pattern showing only on steep slopes.}
@@ -319,9 +315,9 @@ In steep areas, I have procedurally generated a rock texture resembling striped 
 \subsubsection{Shading}
 \label{Terrain Shading}
 
-In shading the terrain, I utilized the Phong reflection model, which is detailed in Section \ref{Phong}, complemented by Fresnel Reflection, as introduced in Section \ref{Fresnel}. The Phong model requires several inputs: the intersection point determined through ray marching (see Section \ref{Terrain Raymarching}), the material color via procedural coloring (refer to Section \ref{Terrain Procedural Texturing}), the incident light direction from the sun's spherical coordinates (described in Section \ref{Sun Ray}), and the terrain normal, analytically derived from the heightmap (outlined in Section \todo{REF}).
+In shading the terrain, I utilized the Phong reflection model (Section \ref{Phong}), complemented by Fresnel Reflection (Section \ref{Fresnel}). The Phong model requires several inputs: the intersection point determined through ray marching (Section \ref{Terrain Raymarching}), the material color via procedural coloring (Section \ref{Terrain Procedural Texturing}), the incident light direction from the sun's spherical coordinates (Section \ref{Sun Ray}), and the terrain normal, analytically derived from the heightmap (outlined in Section \todo{REF}).
 
-The Phong model calculates the ambient, diffuse, and specular terms according to its established formulae (Equations \ref{ambient}, \ref{diffuse} and \ref{specular}). My implementation followed the equations to calculate these three terms. The model's parameters are exposed in the application's user interface, allowing for real-time adjustments.
+I followed Equations \ref{ambient}, \ref{diffuse} and \ref{specular} to calculate the ambient, diffuse, and specular terms in the Phong model. The model's parameters are adjustable in the application's UI.
 
 For added realism, the Phong shading model is augmented with Fresnel Reflection. Using Schlick's approximation (Equation \ref{schlick}) to compute the Fresnel term, $F(\theta)$, the specular term within the Phong model, $I_s$, is modified from Equation \ref{specular} to be:
 
@@ -329,9 +325,7 @@ For added realism, the Phong shading model is augmented with Fresnel Reflection.
 I_{s} = k_s \cdot F(\theta) \cdot (\mathbf{r} \cdot \mathbf{-cr})^n \cdot I
 \end{equation}
 
-Here, $F(\theta)$ is the Fresnel term, calculated using Schlick's approximation. This integration enhances the specular reflection in Phong Shading to vary with the viewing angle, aligning it more closely with real-world observations.
-
-In my implementation, I bypassed the direct calculation of the incidence angle $\theta$ for Schlick's approximation; instead, I computed $\cos(\theta)$ directly using the negative dot product of the normal and the camera ray, $\text{-dot(normal, camera\_ray)}$.
+In my implementation, I bypassed the direct calculation of the incidence angle $\theta$ for Schlick's approximation; instead, I computed $\cos(\theta)$ directly using the negative dot product of the normal and the camera ray, $\mathbf{n} \cdot \mathbf{cr}$.
 
 \subsubsection{Shadows}
 \label{Terrain Shadows}
@@ -339,10 +333,10 @@ In my implementation, I bypassed the direct calculation of the incidence angle $
 To make terrain cast soft shadows (as demonstrated in Figure \ref{terrain_soft}), I implemented a method for calculating the penumbra factor, $P$, based on the approach in Section \ref{Shadows}. Instead of measuring the actual distance from a shadow sample point to the terrain, I used vertical distance as a more efficient approximation. This method is visualized in Figure \ref{shadow_terrain} and implemented as outlined in Algorithm \ref{algo:soft shadow terrain}.
 
 \begin{algorithm}
-\caption{Soft Shadow Calculation}
+\caption{Terrain Shadow Calculation}
 \label{algo:soft shadow terrain}
 \begin{algorithmic}
-\Function{soft\_shadow}{$\mathbf{X}, \mathbf{sr}$}
+\Function{terrain\_shadow}{$\mathbf{X}, \mathbf{sr}$}
     \State $d_{\text{min}} \gets \infty$
     \For{$i = 0$ to $s_{\text{max}}$}
         \State $\mathbf{P}_i \gets \mathbf{X} + i \cdot s \cdot \mathbf{sr}$
@@ -355,7 +349,7 @@ To make terrain cast soft shadows (as demonstrated in Figure \ref{terrain_soft})
 \end{algorithm}
 
 \myfigure{0.6}{shadow_terrain}{}
-{Illustration of soft shadow calculations for terrains. For the point in the penumbra region, its shadow ray doesn't intersect with the terrain. The minimum distance $d_{\text{min}}$ is incurred at $\mathbf{P}_2$. For the point in the umbra region, its shadow ray intersects with the terrain.}
+{Illustration of soft shadow calculations for terrains. For the point in penumbra, its shadow ray doesn't intersect with the terrain. The minimum distance $d_{\text{min}}$ is incurred at $\mathbf{P}_2$. For the point in umbra, its shadow ray intersects with the terrain.}
 
 The shadow intensity, $S$, is subsequently integrated into the terrain's lighting model. The final color $\mathbf{c}$ of a fragment is calculated as:
 
@@ -373,9 +367,9 @@ Here, $I_{a}$, $I_{d}$, and $I_{s}$ are the ambient, diffuse, and specular contr
 \subsection{Procedural Generation}
 \label{Tree Procedural Generation}
 
-In my project, SDFs (Section \ref{SDF}) are employed for tree representation. Each tree is modeled using the SDF of an ellipsoid, with added 3D fBm to mimic the foliage, and populated using domain repetition. 
+In my project, each tree is modeled using the SDF(Section \ref{SDF}) of an ellipsoid, with added 3D fBm to mimic the foliage, and populated using domain repetition. 
 
-\paragraph{SDF of ellipsoids}
+\paragraph{SDF of Ellipsoids}
 Instead of a simplistic approach scaling a sphere's SDF, a more accurate representation for ellipsoids is utilized (\todo{CITE}):
 
 \begin{equation}
@@ -384,14 +378,14 @@ Instead of a simplistic approach scaling a sphere's SDF, a more accurate represe
 
 Here, $\mathbf{r}$ is a vector specifying the ellipsoid's dimensions, and the origin is assumed to be the center of the ellipsoid.
 
-\paragraph{fBm for leaves}
+\paragraph{fBm for Leaves}
 The leaves are simulated by distorting the ellipsoid with a 3D fBm:
 
 \begin{equation}
 \text{SDF}_\text{tree}(\mathbf{X}) = \text{SDF}_\text{ellipsoid}(\mathbf{X}, \mathbf{r}) + \gamma \cdot \text{fBm}_3(\mathbf{X})
 \end{equation}
 
-In this formula, $\gamma$ represents the distortion magnitude, and it is adjustable in the application's UI along with the fBm parameters. The dimension $\mathbf{r}$ of the ellipsoids is randomized within a range to introduce size variation among trees.
+Here, $\gamma$ represents the distortion magnitude, and it is adjustable in the application's UI along with the fBm parameters. The dimension $\mathbf{r}$ of the ellipsoids is randomized within a range to introduce size variation among trees.
 
 \paragraph{Domain repetition for tree population}
 To efficiently distribute trees across the terrain, a domain repetition technique is used. The SDF for a tree instance is made periodic on an infinite axis-aligned 2D square grid in the xz-plane. This results in a representation of infinite trees within this grid pattern. The tree positions are vertically adjusted by the terrain height and an additional constant $v$:
@@ -437,10 +431,11 @@ The random offset $o(\mathbf{X})$ introduces complexity in determining the close
 {Depicts domain repetition and the incorporation of randomized offsets and dimensions in tree generation, excluding species variation for simplicity.}
 
 \subsection{Ray Marching}
+\label{Tree Ray Marching}
 
-While Sphere Tracing, as detailed in Section \ref{Raymarching SDFs}, is a viable method for determining the intersection with the SDF of trees, initiating this process from the camera position for each tree intersection would be highly inefficient, considering that a similar ray marching process has just been done for the terrain.
+While Sphere Tracing (Section \ref{Raymarching SDFs}) is a viable method for determining the intersection with the SDF of trees, initiating this process from the camera position for each tree intersection would be inefficient, considering that a similar ray marching process has just been done for the terrain.
 
-To optimize efficiency, I integrated checks for intersections with tree canopies into the terrain ray marching algorithm. The tree canopy, defined by a constant height above the terrain, serves as an effective bounding box for the trees, as depicted in Figure \ref{canopy}. Once the terrain intersection is identified through ray marching, the farthest canopy intersection point is then used as the starting position for Sphere Tracing of the trees. This approach substantially reduces computational overhead, as it reduces sphere tracing steps, as illustrated and compared in Figure \ref{canopy}. 
+To optimize efficiency, I integrated checks for intersections with tree canopies into the terrain ray marching algorithm. The tree canopy, defined by a constant height above the terrain, serves as an approximated bounding box for the trees, as depicted in Figure \ref{canopy}. Once the terrain intersection is identified through ray marching, the farthest canopy intersection point is then used as the starting position for Sphere Tracing of the trees. This approach substantially reduces sphere tracing steps, as illustrated and compared in Figure \ref{canopy}. 
 
 \myfigure{1.0}{canopy}{}
 {Illustrating the efficiency of my tree ray marching method: Sphere Tracing from the camera (left) takes 3 steps, while starting from the canopy intersection (right) requires only 1 step.}
@@ -449,32 +444,32 @@ To optimize efficiency, I integrated checks for intersections with tree canopies
 
 In the procedural coloring of trees, the primary objective is to introduce \textbf{color variation}, enhancing the realism of tree materials. 
 
-I implemented two types of color variations: inter-species and intra-species. Each generated tree belongs to either species A or B (detailed in Section \ref{Tree Procedural Generation}), leading to the first type of variation, where different color schemes distinguish between the two species. Within each species, the second type of variation arises due to age differences among the trees. 
+I implemented two types of color variations: inter-species and intra-species. Each generated tree belongs to either species A or B (Section \ref{Tree Procedural Generation}), leading to the first type of variation, where different color schemes distinguish between the two species. Within each species, the second type of variation arises due to age differences among the trees. 
 
-For any given pixel intersecting a tree in the rendered image, the process involves identifying the tree's species and then retrieving the corresponding color palette -- typically a 'young' color and an 'old' color for that species. To simulate intra-species variation, a random value between 0 and 1 is generated. This value is then used to interpolate between the young and old colors, resulting in a nuanced and realistic coloration for each tree, as demonstrated in Figure \ref{tree}.
+For any given pixel intersecting a tree in the rendered image, the process involves identifying the tree's species and then retrieving the corresponding color palette -- a 'young' color and an 'old' color for that species. To simulate intra-species variation, a random value between 0 and 1 is generated. This value is then used to interpolate between the young and old colors, resulting in a nuanced and realistic coloration for each tree, as demonstrated in Figure \ref{tree}.
 
-\myfigure{0.4}{tree}{}
-{The trees featuring more saturated colors represent one species, while those with less saturation belong to another. Color variations within each species simulate age differences.}
+\myfigure{0.8}{tree}{}
+{The left image displays trees of one species in more saturated colors and another species in less saturated colors, with color variations indicating age differences. The right image uses higher contrast colors to differentiate the two species.}
 
 \subsection{Illumination and Shadows}
 
 \subsubsection{Shading}
 
-For effective lighting of trees, determining the normal at the intersection point $\mathbf{P}$ is crucial. First, I obtain the normal of the tree's SDF using a numerical method (referenced in Section \todo{REF}). Subsequently, this SDF normal is blended with the normal of the underlying terrain at point $\mathbf{P}$. This blending facilitates the representation of tree lighting that conforms to the shape of the terrain beneath, mathematically expressed as:
+For effective lighting of trees, determining the normal at the intersection point $\mathbf{P}$ is crucial. First, I obtain the normal of the tree's SDF using a numerical method (Section \todo{REF}). Subsequently, this SDF normal is blended with the normal of the underlying terrain at point $\mathbf{P}$. This blending facilitates the representation of tree lighting that conforms to the shape of the terrain beneath, mathematically expressed as:
 
 \begin{equation}
-    \mathbf{n}(\mathbf{P}) = a \cdot \mathbf{n}_{\text{sdf}}(\mathbf{P}) + (1 - a) \cdot \mathbf{n}_H(\mathbf{P}.xz)
+    \mathbf{n}(\mathbf{P}) = a \cdot \mathbf{n}_{\text{SDF}}(\mathbf{P}) + (1 - a) \cdot \mathbf{n}_H(\mathbf{P}.xz)
 \end{equation}
 
-Here, $\mathbf{n}_{\text{sdf}}(\mathbf{P})$ is the SDF normal at point $\mathbf{P}$, $\mathbf{n}_H$ is the normal of the underlying terrain, and $a$ is a blending factor.
+Here, $\mathbf{n}_{\text{SDF}}(\mathbf{P})$ is the SDF normal at point $\mathbf{P}$, $\mathbf{n}_H$ is the normal of the underlying terrain, and $a$ is a blending factor.
 
-Similar to the shading approach for terrain (Section \ref{Terrain Shading}), the Phong Model with Fresnel reflection is employed for shading trees. Additionally, to simulate self-occlusion and ambient occlusion by nearby trees, I introduce an occlusion term $O$, computed as:
+Similar to the shading approach for terrain (Section \ref{Terrain Shading}), the Phong Model with Fresnel reflection is employed for shading trees. Additionally, to approximate self-occlusion and ambient occlusion by nearby trees, I introduce an occlusion term $O$, computed as:
 
 \begin{equation}
 O = \text{smoothstep}(a, b, h_t)
 \end{equation}
 
-Here, the occlusion term $O$ is interpolated between 0 and 1 based on the height of the tree $h_t$, with parameters $a$ and $b$ controlling the interpolation. This occlusion term $O$ is then multiplied with the diffuse component $I_d$ of the lighting model, resulting in lower parts of the tree appearing less lit than the upper parts, as demonstrated in Figure \ref{tree_illumination}.
+Here, $O$ is interpolated between 0 and 1 based on the height of the tree $h_t$, with parameters $a$ and $b$ controlling the interpolation. The diffuse component $I_d$ of the lighting model is then multiplied with $O$, resulting in lower parts of the tree appearing less lit than the upper parts, as demonstrated in Figure \ref{tree_illumination}.
 
 \subsubsection{Shadows}
 
@@ -511,7 +506,7 @@ To achieve this effect, following Algorithm \ref{algo: tree shadow}, I accumulat
 
 \subsection{Representation}
 
-In this project, a simple model was utilized to represent water. Assuming a constant water level globally, the water surface is modeled as a plane perpendicular to the y-axis. The elevation of this surface, denoted as $w$, serves as its defining parameter and can be adjusted in the user interface. Instead of geometrically distorting the water surface to simulate waves, normal mapping was applied to mimic wave effects, as detailed in Section \ref{Water Shading}.
+In this project, a simple model was utilized to represent water. Assuming a constant water level globally, the water surface is modeled as a plane perpendicular to the y-axis. The elevation of this surface, denoted as $w$, serves as its defining parameter and can be adjusted in the UI. Instead of geometrically distorting the water surface to simulate waves, normal mapping was applied to mimic wave effects, as detailed in Section \ref{Water Shading}.
 
 \subsection{Finding Intersection}
 
@@ -539,7 +534,7 @@ The procedural coloring of water focuses on two visual aspects: depth-dependent 
 
 \paragraph{Depth-Based Color Variation}
    
-The effective length of water that the light travels through, denoted as $l$, is computed as the difference between the total distance to an object $d_{o}$ and the distance to the water surface $d_{w}$:
+The effective length of water that the camera ray travels through, denoted as $l$, is computed as the difference between the total distance to an object $d_{o}$ and the distance to the water surface $d_{w}$:
 
 \begin{equation}
    l = d_{o}-d_w
@@ -557,7 +552,7 @@ Water color is then interpolated between deep and shallow hues based on this tra
 
 Transparency is achieved by blending the water material color with the color at the underwater terrain intersection, based on the transmittance $\tau$. A higher $\tau$ indicates more light scatter, resulting in less light penetration and decreased transparency, and vice versa.
 
-\subsection{Illumination and Shadows}
+\subsection{Illumination}
 \label{Water Shading}
 
 A heightmap $H(x,z)$, constructed from a 2D fBm, represents water surface waves. The normal of this heightmap, $N_H$, serves as the normal map. The normal vector $\mathbf{n}$ at a point $\mathbf{X}$ on the water surface is:
@@ -568,7 +563,7 @@ A heightmap $H(x,z)$, constructed from a 2D fBm, represents water surface waves.
 
 Details on calculating heightmap normals are in Section \todo{REF}.
 
-Shading follows similar techniques as for terrain, utilizing the Phong model with a Fresnel effect, as detailed in Section REF. 
+Shading follows similar techniques as for terrain, utilizing the Phong model with a Fresnel effect, as detailed in Section \ref{Terrain Shading}. 
 
 Reflections, although not implemented, could be approximated by rendering from the intersection point, using the reflected ray as the camera ray, limiting recursive renders, and weighting the reflection results progressively less. \question{Shall I talk about how reflections could be done in Conclusion: Future Extensions?}
 
@@ -578,8 +573,8 @@ This section outlines the physics-based rendering technique implemented for simu
 
 The simulation examines the path of light from a point $\mathbf{E}$ in the scene to the camera at position $\mathbf{C}$, counter to the direction of the camera ray $\mathbf{cr}$. It accounts for two key phenomena, as illustrated in Figure \ref{scatter}:
 \begin{itemize}
-    \item \textbf{In-scattering}: Light scatters from other directions into the direction of the camera ray.
-    \item \textbf{Out-scattering}: The loss of light from the camera's line of sight as it scatters in other directions.
+    \item \textbf{In-scattering}: Light scatters from other directions into the direction of the ray.
+    \item \textbf{Out-scattering}: The loss of light from the ray as it scatters in other directions.
 \end{itemize}
 
 \myfigure{0.7}{scatter}{}
@@ -588,13 +583,13 @@ The simulation examines the path of light from a point $\mathbf{E}$ in the scene
 
 \subsection{Modeling the Atmosphere}
 
-Since the procedurally generated world is an infinite in the xz direction, the atmospheric density depends solely on altitude. The atmosphere is given an upper limit $h_{\text{max}}$, above which the density is zero. The atmospheric density $D$ at a point $\mathbf{P}$ below the upper bound decreases exponentially with height and is modeled as:
+Since the procedurally generated world is infinite in the xz direction, the atmospheric density depends solely on altitude. The atmosphere is given an upper limit $h_{\text{max}}$, above which the density is zero. The atmospheric density $D$ at a point $\mathbf{P}$ below the upper bound is modeled as:
 
 \begin{equation}
     D(\mathbf{P})=\frac{e^{-\lambda \mathbf{P}.y}\left(h_{\text{max}}-\mathbf{P}.y\right)}{h_{\text{max}}}
 \end{equation}
 
-where $\lambda$ is a decay constant modifiable in the user interface.
+where $\lambda$ is a decay constant modifiable in the UI.
 
 \subsection{The In-Scattering Equation}
 \label{The In-Scattering Equation}
@@ -610,28 +605,28 @@ The equation is expressed as:
 where:
 \begin{itemize}
     \item $I(\lambda)$ denotes the intensity of sunlight at wavelength $\lambda$.
-    \item $K(\lambda)$ is the wavelength-dependent scattering coefficient. In the implementation, the coefficients for the red, green, and blue wavelengths are used, with their values being adjustable in the user interface.
+    \item $K(\lambda)$ is the wavelength-dependent scattering coefficient. In the implementation, the coefficients for the red, green, and blue wavelengths are used, with their values being adjustable in the UI.
     \item $F(\theta, g)$ is the phase function, representing the angular distribution of scattering.
 \end{itemize}
 
 The end point $\mathbf{E}$ varies based on scene interaction:
 \begin{itemize}
-    \item If the camera ray intersects with an object (terrain, tree, or water), $\mathbf{E}$ is the intersection point, as shown in the left diagram of Figure \ref{inscatter}.
-    \item If there's no intersection, $\mathbf{E}$ is the point where the camera ray $\mathbf{cr}$ intersects the upper boundary of the atmosphere, as shown in the right diagram of Figure \ref{inscatter}.
+    \item If the camera ray intersects with an object (terrain, tree, or water), $\mathbf{E}$ is the intersection point, as shown in the right diagram of Figure \ref{inscatter}.
+    \item If there's no intersection, $\mathbf{E}$ is the point where the camera ray $\mathbf{cr}$ intersects the upper boundary of the atmosphere, as shown in the left diagram of Figure \ref{inscatter}.
 \end{itemize}
 
 In the integral:
 \begin{itemize}
-    \item Point $\mathbf{P}$ is expressed as $\mathbf{R}(s) = \mathbf{C} + s \cdot \mathbf{cr}$, where $\mathbf{R}$ is the camera ray.
+    \item $\mathbf{P}$ is a point on the segment between $\mathbf{C}$ and $\mathbf{E}$. $P = \mathbf{R}(s) = \mathbf{C} + s \cdot \mathbf{cr}$, where $\mathbf{R}$ is the camera ray.
     \item $t$ is the out-scattering function.
-    \item $\mathbf{S}$ is the intersection of the sun ray $\mathbf{sr}$ with the atmosphere's upper boundary starting from $\mathbf{P}$, as depicted in Figure \ref{inscatter}.
+    \item $\mathbf{S}$ is the intersection between the atmosphere's upper boundary with the ray with origin $\mathbf{P}$ and direction $\mathbf{sr}$, as depicted in Figure \ref{inscatter}.
     \item $H_0$ is a parameter adjustable in the UI.
 \end{itemize}
 
 \myfigure{1.0}{inscatter}{}
 {Visually clarify the notations and concepts related to the in-scattering equation. The left diagram represents a situation where the camera ray does not intersect any scene elements, and the right diagram shows a scenario with an intersection.}
 
-The integral is approximated using Riemann sums, a method of summing rectangular areas to approximate the area under a curve. This technique involves marching along the camera ray, sampling at points $\mathbf{P}_i$ and evaluating the integrand at each point, then multiplying by the step size $s$. The sum of these calculations provides the total scattered light contribution along the ray path. This process is illustrated in Figure \ref{riemann}.
+The integral is approximated using Riemann sums, a method of summing rectangular areas to approximate the area under a curve. This technique involves marching along the camera ray, sampling at points $\mathbf{P}_i$ and evaluating the integrand at each point, then multiplying by the step size $s$. The sum of these calculations approximates the integral in the scattering equation. This process is illustrated in Figure \ref{riemann}.
 
 \myfigure{1.0}{riemann}{}
 {Visually demonstrates the Riemann sums method for the in-scattering equation: the left diagram represents a situation where the camera ray does not intersect any scene elements, and the right diagram shows a scenario with an intersection.}
@@ -658,10 +653,7 @@ The phase function $F$, essential in determining the directionality of scatterin
     F(\theta, g) = \frac{3 \times (1 - g^2)}{2 \times (2 + g^2)} \times \frac{1 + \cos^2 \theta}{(1 + g^2 - 2 \times g \times \cos \theta)^{\frac{3}{2}}}
 \end{equation}
 
-\begin{itemize}
-    \item In this formula, $\theta$ is the angle between the incoming light and the scattering direction.
-    \item The asymmetry parameter $g$ influences the scattering distribution. For Rayleigh scattering, where $g = 0$, the function simplifies to $\frac{3}{4}(1 + \cos^2\theta)$, indicating more light scattered in directions close to the incoming light source.
-\end{itemize}
+Here, $\theta$ is the angle between the incoming light and the scattering direction. The asymmetry parameter $g$ influences the scattering distribution. For Rayleigh scattering, where $g = 0$, the function simplifies to $\frac{3}{4}(1 + \cos^2\theta)$, indicating more light scattered in directions close to the incoming light source.
 
 \subsection{Blending}
 
@@ -680,10 +672,10 @@ For the final blended color $\mathbf{c}$ with RGB representation, I focus on thr
 \end{equation}
 
 \myfigure{1.0}{atmosphere}{}
-{Displays a series of screenshots depicting varying sun directions and altitudes: the first row captures lower altitudes, while the second showcases higher altitudes. Progressing from left to right, the sun's angle shifts from being more perpendicular to more oblique relative to the ground, mirroring the natural shift from midday to evening.}
+{Displays a series of screenshots with varying sun directions and altitudes: the first row captures lower altitudes, while the second showcases higher altitudes. Progressing from left to right, the sun's angle shifts from being more perpendicular to more oblique relative to the ground, mirroring the natural shift from midday to evening.}
 
 \myfigure{0.7}{atmospheric}{}
-{Compares renders before and after applying the atmosphere simulation, emphasizing the atmospheric perspective on the terrain. Note how the distant terrain appears more seamlessly merged with the sky due to this effect.}
+{Compares renders before and after applying the atmosphere simulation, emphasizing the atmospheric perspective on the terrain. Note how the distant terrain appears more merged with the sky due to this effect.}
 
 \section{Clouds}
 
@@ -695,7 +687,7 @@ The procedural generation of this map begins with establishing a \textbf{boundin
 
 The generation involves two primary steps (as illustrated in Figure \ref{cloud_fbm}):
 \begin{enumerate}
-    \item \textbf{Base Density}: The base density of the clouds is initially determined relative to their vertical position. The cloud density is intensified nearer to the box's central vertical axis, denoted by $y_c$, the mean of $y_u$ and $y_l$. The base density at a point $\mathbf{x}$ is formulated as:
+    \item The \textbf{base density} of the clouds is initially determined relative to their vertical position. The cloud density is intensified nearer to the box's central vertical axis, denoted by $y_c$, the mean of $y_u$ and $y_l$. The base density at a point $\mathbf{x}$ is formulated as:
 
 \begin{equation}
     D(\mathbf{X}) = h - |\mathbf{X}.y - y_{c}|
@@ -703,7 +695,7 @@ The generation involves two primary steps (as illustrated in Figure \ref{cloud_f
 
     where $h$ is a fraction of the total vertical extent of the cloud box.
 
-    \item \textbf{3D fBm}: To this base density, a 3D fBm is added, introducing natural, cloud-like irregularities and variations. The final density $D(\mathbf{x})$ at point $\mathbf{x}$ is then:
+    \item To this base density, a \textbf{3D fBm} is added, introducing natural, cloud-like irregularities and variations. The final density $D(\mathbf{x})$ at point $\mathbf{x}$ is then:
 
 \begin{equation}
     D(\mathbf{X}) = h - |\mathbf{X}.y - y_{c}| + \text{fBm}_3(\mathbf{X})
@@ -713,11 +705,11 @@ The generation involves two primary steps (as illustrated in Figure \ref{cloud_f
 In this approach, the combination of a base density gradient and the nature-simulating properties of fBm (Section \ref{FBM}) results in a realistic representation of cloud density. This method ensures clouds exhibit natural variations, while predominantly clustering towards the bounding box's center, avoiding unrealistic overflow.
 
 \myfigure{0.8}{cloud_fbm}{}
-{Illustrate the procedural generation process of the cloud density map. The diagram display cross-sectional slices of the density map along the x-axis.}
+{Illustrates the procedural generation process of the cloud density map. The diagram displays cross-sectional slices of the density map along the x-axis.}
 
 \subsection{Volumetric Rendering}
 
-Due to their transparent and volumetric properties, clouds cannot be effectively rendered using traditional ray marching to locate surface intersections. Instead, my approach involves sampling multiple points along the camera ray within the cloud volume. At each sampled point, color is calculated, and these colors are subsequently blended to form the final color. It’s important to note that this rendering technique is based on heuristic methods rather than a physically accurate simulation of light scattering phenomena, such as Mie Scattering.
+Due to their transparent and volumetric properties, clouds cannot be rendered just using traditional ray marching to locate surface intersections. Instead, my approach involves sampling multiple points along the camera ray within the cloud volume. At each sampled point, color is calculated, and these colors are subsequently blended to form the final color. It’s important to note that this rendering technique is based on heuristic methods rather than a physically accurate simulation of light scattering phenomena, such as Mie Scattering.
 
 \subsubsection{Volumetric Ray Marching}
 
@@ -735,25 +727,25 @@ The start $t_s$ and end $t_e$ distances along the ray from the camera position $
     t_e = \min(\max(\frac{y_l - \mathbf{C}.y}{\mathbf{cr}.y}, \frac{y_u - \mathbf{C}.y}{\mathbf{cr}.y}), t_{\text{max}})
 \end{equation}
 
-Here $\mathbf{cr}$ is the direction of camera ray , and $t_{\text{max}}$ is the maximum ray marching distance. The computations consider all the cases: where the camera position is below, in or above the bounding box.
+Here $\mathbf{cr}$ is the direction of camera ray, and $t_{\text{max}}$ is the maximum ray marching distance. The computations consider all the cases: where the camera position is below, in or above the bounding box.
 
 \paragraph{Adaptive step size}
 
 The step size $s$ is dynamically adjusted based on the cloud density $D(\mathbf{X})$ and the distance $t$ already covered by the ray. The density function $D(\mathbf{X})$ includes negative values, which, while uncharacteristic for physical densities, are utilized here for computational efficiency. These negative values indicate regions devoid of clouds, allowing the algorithm to increase the step size $s$ in proportion to the negativity of the density, thereby speeding up the march through empty spaces.
 
 \begin{equation}
-    s = s_d \times |D(\mathbf{X})| + s_{\text{min}}
+    s = a \times |D(\mathbf{X})| + s_{\text{min}}
 \end{equation}
 
- Here, $s_d$ is a scaling factor for density, and $s_{\text{min}}$ is the minimum step size.
+ Here, $a$ is a scaling factor for density, and $s_{\text{min}}$ is the minimum step size.
 
 For positive density regions, the step size is also increased with distance $t$ to reduce computational load, as distant samples contribute less to visual detail and the final color blend.
 
 \begin{equation}
-     s = \max(s_{\text{min}}, s_t \times t)
+     s = \max(s_{\text{min}}, b \times t)
 \end{equation}
 
-where $s_t$ is the distance scaling factor.
+where $b$ is the distance scaling factor.
 
 \paragraph{Termination criteria}
 
@@ -804,7 +796,7 @@ An additional effect emulates sunlight filtering through clouds, especially noti
   \mathbf{c}.rgb \mathrel{+}= a \cdot \mathbf{c}_{\text{sun}} \cdot (1 - b \cdot \mathbf{c}.\alpha) \cdot (\text{clamp}(\mathbf{cr} \cdot \mathbf{sr}, 0, 1))^ c
 \end{equation}
 
-Here, $a,b,c$ are parameters that are adjustable in the UI. $\mathbf{c}.\alpha$ indicates the cumulative cloud density along the camera ray, with a lower value indicating less cloud density and therefore a stronger sunlight effect. Moreover, the effect is stronger when the camera ray is closely aligned with the sun ray, indicated by $\mathbf{cr}\cdot \mathbf{sr}$.
+Here, $a,b,c$ are parameters that are adjustable in the UI. $\mathbf{c}.\alpha$ indicates the cumulative cloud density along the camera ray, with a lower value indicating less cloud density and therefore more sunlight filtering through. Moreover, the effect is stronger when the camera ray is closely aligned with the sun ray, indicated by $\mathbf{cr}\cdot \mathbf{sr}$.
 
 \myfigure{0.8}{clouds_sun}{}
 {Comparison of Cloud Renders Demonstrating Sunlight Penetration Effect: The left image with the effect turned off, and the right image with the effect enabled.}
@@ -814,18 +806,18 @@ Here, $a,b,c$ are parameters that are adjustable in the UI. $\mathbf{c}.\alpha$ 
 
 \subsection{Camera Controls}
 
-In this project, the scene features an infinitely expansive terrain, making traditional CAD camera controls like turn-table or trackball models unsuitable. A game-like camera control model was adopted for more intuitive navigation in such an extensive environment. The camera movement is controlled by the WASD and EQ keys, which allow movement along the three axes of the camera's coordinate system. The left mouse button drag controls the forward direction of the camera, while the scroll wheel adjusts the focal length. Right mouse dragging enables movement in the plane perpendicular to the camera's forward direction. 
+In this project, the scene features an infinitely expansive terrain, making traditional CAD camera controls like turn-table or trackball models unsuitable. A game-like camera control model was adopted for more intuitive navigation in such an extensive environment. The camera movement is controlled by the WASD and EQ keys, which allow movement along the three axes of the camera's coordinate system. The left mouse button drag controls the forward direction of the camera, while the scroll wheel adjusts the focal length. Right mouse dragging enables movement in the plane perpendicular to the forward direction. 
 
-Camera parameters, including position and rotation, are first configured on the CPU using GLFW, and then passed as uniforms to the fragment shader. This setup provides a flexible and responsive camera control system. For detailed adjustments, the precise position and rotation can be fine-tuned through the user interface.
+Camera parameters, including position and rotation, are first updated on the CPU using GLFW, and then passed as uniforms to the fragment shader. For detailed adjustments, the precise position and rotation can be fine-tuned through the UI.
 
 \myfigure{0.4}{camera}{}
-{This screenshot displays the camera panel in the UI, featuring adjustable settings and camera transform controls.}
+{This screenshot displays the camera panel in the UI, featuring adjustable settings and camera transforms.}
 
 This control model enables efficient navigation through the extensive virtual world, proving especially useful for debugging and locating ideal camera angles for rendering.
 
 \subsection{Callback System}
 
-To address GLFW's limitation of handling only one callback per event, a centralized callback management system was implemented. This system efficiently stores and triggers user-defined callback functions for various input events. It activates the appropriate callbacks in response to specific events, thereby facilitating multiple reactions to a single input. This structure significantly enhances the flexibility and complexity of input management within the application.
+To address GLFW's limitation of handling only one callback per event, a centralized callback management system was implemented. This system stores and triggers user-defined callback functions for various input events. It activates the appropriate callbacks in response to specific events, thereby facilitating multiple reactions to a single input. This structure significantly enhances the flexibility and complexity of input management within the application.
 
 \section{UI}
 
@@ -837,7 +829,7 @@ The UI of the application is designed following a hierarchical structure, repres
     \item \textbf{App Level}: The App is the singleton entity at the top level.
     \item \textbf{Panel Level}: Within the App, multiple panels are present. Each panel inherits from a common abstract class.
     \item \textbf{Property Level}: Each panel comprises several properties. These properties are again derived from an abstract class and are responsible for managing individual or groups of parameters.
-    \item \textbf{Parameter Management}: The properties are directly tied to the parameters essential to the procedural generation and rendering parts of the app. They correspond to uniforms on the GPU, facilitating real-time updates and interactions.
+    \item \textbf{Parameter Management}: The properties are directly tied to the parameters essential to the procedural generation and rendering parts of the app. They correspond to uniforms on the GPU, facilitating real-time updates. UI interactions trigger updates to the corresponding uniforms in the GPU.
 \end{itemize}
 
 \myfigure{0.5}{ui_hierarchy}{}
@@ -846,21 +838,7 @@ The UI of the application is designed following a hierarchical structure, repres
 The hierarchy in implementation directly corresponds to the visual structure of the UI, as illustrated in Figure \ref{ui_visual}.
 
 \myfigure{0.8}{ui_visual}{}
-{Demonstrates the visual hierarchical of the UI.}
-
-\subsection{Implementation of Properties}
-
-Properties within the UI are implemented using suitable ImGui components based on the type of the corresponding uniform:
-
-\begin{itemize}
-    \item \textbf{Boolean Uniforms}: Represented with checkboxes.
-    \item \textbf{Float or Integer Uniforms}: Controlled with sliders.
-    \item \textbf{Enums}: Managed via dropdown menus (using macros to simulate enums in GLSL).
-    \item \textbf{Colors}: Vec3 types for colors are handled with color pickers.
-    \item \textbf{General Vec3}: Input fields or three sliders are used.
-\end{itemize}
-
-UI interactions trigger updates to the corresponding uniforms in the GPU.
+{Demonstrates the visual structure of the UI.}
 
 \subsection{Composite Pattern}
 
@@ -873,8 +851,6 @@ In enhancing the UI's flexibility and organizational structure, the \textbf{Comp
 
 Both elements allows for efficient space usage and better categorization, as demonstrated in Figure \ref{composite}.
 
-By using the Composite Design Pattern, the UI structure defined in the code to reflect the actual visual and functional hierarchy, allowing for intuitive interaction and easy modification or extension of the interface.
-
 \myfigure{0.8}{composite}{}
 {Demonstrates GroupProperty and TabPanel. GroupProperty allows several properties to be organized into a collapsible group. TabPanel allows several panels to be organized as tabs in a single panel.}
 
@@ -885,16 +861,16 @@ The UI supports saving and loading of parameters and layout preferences.
 \paragraph{Selection of JSON format}
 I chose the JSON format for the app's saving and loading because of its compatibility with various data types, its hierarchical structure that mirrors the app's design, and its human readability.
 
-\paragraph{Recursive implementation}
+\paragraph{Recursive Implementation}
 The save and load functionality is implemented in a recursive manner. This design choice simplifies the process and ensures consistency across different levels of the UI. Each class in the application, including the app itself, every panel, and every property, implements $\text{save\_to\_json}$ and $\text{load\_from\_json}$ methods. This recursive approach mirrors the hierarchical nature of the UI, enabling seamless serialization and deserialization of parameters.
 
-\paragraph{Scope of save and load}
+\paragraph{Scope of Save and Load}
 One of the benefits of this hierarchical and recursive implementation is the flexibility it offers in terms of scope. It is possible to save and load configurations either globally or at the individual panel level. This flexibility is reflected in the UI, where buttons are provided in the menu bar for global operations, and within each panel for more localized control, as demonstrated in Figure \ref{save}.
 
-\paragraph{Example JSON structure}
+\paragraph{Example JSON Structure}
 A typical JSON file structure for saving the app's parameters resembles the following:
 
-\begin{verbatim}
+\begin{minted}{json}
 {
     "Panel 1": {
         "Param X": {
@@ -911,7 +887,7 @@ A typical JSON file structure for saving the app's parameters resembles the foll
         }
     }
 }
-\end{verbatim}
+\end{minted}
 
 
 \subsection{Layout Preferences}
@@ -920,3 +896,87 @@ In addition to parameter values, layout preferences such as the sizes and positi
 
 \myfigure{0.8}{save}{H}
 {Demonstrates the UI of save and load functionalities.}
+
+\section{Repository Overview}
+
+% \renewcommand{\arraystretch}{1.5}
+
+% \begin{table}[h]
+% \centering
+% \begin{longtable}{p{4cm} p{12cm}}
+% \hline
+% \textbf{Folder}        & \textbf{Description} \\
+% \hline
+% \texttt{Source/Input}           & Manages camera controls and callbacks. \\
+% % \hline
+% \texttt{Source/UI/App}          & Contains the top-level UI class. \\
+% % \hline
+% \texttt{Source/UI/Panels}       & Contains classes for different UI panels. \\
+% % \hline
+% \texttt{Source/UI/Properties}   & Contains various UI properties. \\
+% % \hline
+% \texttt{Source/Pipeline}        & Contains the application entry point, handles window management, Vertex Array Object (VAO), Vertex Buffer Object (VBO), Element Buffer Object (EBO), and shader preprocessing and compilation. \\
+% % \hline
+% \texttt{Source/Shaders}         & Contains all GLSL shaders. \\
+% \hline
+% \end{longtable}
+% \caption{Repository Overview.}
+% \label{table:folder-structure}
+% \end{table}
+
+% \renewcommand{\arraystretch}{1.0}
+
+\begin{figure}
+\dirtree{%
+.1 /.
+.2 Source/.
+.3 Input/.\DTcomment{Manages camera controls and callbacks}.
+.3 Pipeline/.
+.4 Main.cpp.\DTcomment{Entry point of the app}.
+.4 Window.cpp.\DTcomment{Encapsulates GLFW windows}.
+.4 Shader.cpp.\DTcomment{Encapsulates OpenGL shaders, preprocesses and compiles shaders}.
+.4 FBO.cpp.\DTcomment{Encapsulates OpenGL Framebuffer Objects}.
+.4 VAO.cpp.\DTcomment{Encapsulates OpenGL Vertex Array Objects}.
+.4 VBO.cpp.\DTcomment{Encapsulates OpenGL Vertex Buffer Objects}.
+.4 EBO.cpp.\DTcomment{Encapsulates OpenGL Element Buffer Objects}.
+.4 FPSCounter.cpp.\DTcomment{Counts FPS}.
+.3 UI/.
+.4 App/.\DTcomment{Contains the top-level UI class}.
+.4 Panels/.\DTcomment{Contains classes for different UI panels}.
+.4 Properties/.\DTcomment{Contains various UI properties}.
+.3 Shaders/. 
+.4 Main.vert/.\DTcomment{A minimal VS for the screen quad}.
+.4 Main.frag/.\DTcomment{The main FS for the screen quad, the entry point}.
+.4 Debug.frag/.\DTcomment{}.
+.4 Shading.frag/.\DTcomment{}.
+.4 Raymarching.frag/.\DTcomment{}.
+.4 Clouds.frag/.\DTcomment{}.
+.4 Trees.frag/.\DTcomment{}.
+.4 Planet.frag/.\DTcomment{}.
+.4 ValueNoise.frag/.\DTcomment{}.
+.4 IntersectionDistanceError.frag/.\DTcomment{}.
+.4 HeightDifferenceError.frag/.\DTcomment{}.
+.4 fBm.frag/.\DTcomment{}.
+.4 Terrain.frag/.\DTcomment{}.
+.4 SphericalAtmosphere.frag/.\DTcomment{}.
+.4 Atmosphere.frag/.\DTcomment{}.
+.4 Profiling.frag/.\DTcomment{}.
+.4 TwoDSky.frag/.\DTcomment{}.
+.4 Encoding.frag/.\DTcomment{}.
+.4 TerrainMaterial.frag/.\DTcomment{}.
+.4 Water.frag/.\DTcomment{}.
+.4 Sun.frag/.\DTcomment{}.
+.4 SmoothStep.frag/.\DTcomment{}.
+.4 Hash.frag/.\DTcomment{}.
+.4 Constants.frag/.\DTcomment{}.
+.4 Motion.frag/.\DTcomment{}.
+.2 CMakeLists.txt.\DTcomment{CMake script for compilation}.
+.2 LICENSE.txt.\DTcomment{License for this project}.
+}
+\caption{Repository Overview}
+\end{figure}
+
+% DONE
+% \question{Shall I also list all the shader files?}
+% \JM{Yes, that is most of what you have done and an interesting aspect of the repository structure.}
+% \todo{proper repo overview table that includes shader files}

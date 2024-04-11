@@ -1,5 +1,4 @@
 % imports
-\usepackage[pdfborder={0 0 0}]{hyperref}  % turns references into hyperlinks
 \usepackage{graphicx}  % allows inclusion of PDF, PNG and JPG images
 \usepackage{fancyhdr}  % for tweaking the running header/footer lines
 \usepackage{amsfonts}
@@ -9,6 +8,9 @@
 \usepackage[utf8]{inputenc}
 \usepackage{titlesec}
 \usepackage{xcolor}
+\usepackage{longtable}
+\usepackage{svg}
+\usepackage{dirtree}
 
 % code highlighting
 \usepackage{minted}
@@ -47,13 +49,26 @@
 \end{table}
 }
 
+% \newcommand{\myfigure}[4]{
+% \begin{figure}[#3]
+%     \centering
+%     \includegraphics[width=#1\textwidth]{figures/#2.png}
+%     \caption{#4}
+%     \label{#2}
+% \end{figure}
+% }
+
 \newcommand{\myfigure}[4]{
-\begin{figure}[#3]
-    \centering
-    \includegraphics[width=#1\textwidth]{figures/#2.png}
-    \caption{#4}
-    \label{#2}
-\end{figure}
+    \begin{figure}[#3]
+        \centering
+        \IfFileExists{svgs/#2.svg}{%
+            \includesvg[width=#1\textwidth]{svgs/#2}%
+        }{%
+            \includegraphics[width=#1\textwidth]{figures/#2.png}
+        }
+        \caption{#4}
+        \label{#2}
+    \end{figure}
 }
 
 \newcommand{\todo}[1]{
@@ -63,3 +78,6 @@
 \newcommand{\question}[1]{
     \textcolor{purple}{\textbf{QUESTION:} #1}
 }
+
+\usepackage[pdfborder={0 0 0}, bookmarks=true]{hyperref}  % turns references into hyperlinks
+\hypersetup{bookmarksdepth=subsubsection}  % or any other level you need
