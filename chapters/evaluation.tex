@@ -2,7 +2,200 @@
 
 Evaluation...
 
-\section{Evaluation Section 1}
-\label{sec:4.1}
+\section{Naturalness}
+\label{Naturalness}
 
-Evaluation Section 1... 
+\section{Correctness}
+\label{Correctness}
+
+\subsection{Visual Debugging}
+\label{Visual Debugging}
+
+\textbf{\underline{Goal:}}
+Ensure correct implementation of procedural generation and rendering of natural elements in this project.
+
+\textbf{\underline{Methods and results:}}
+To validate the procedural generation and rendering methods, I utilized visual debugging across various components:
+
+For the terrain heightmap, I created debug views that display the heightmap in a two-dimensional space (Figure \ref{debug_heightmap_2D}) and display cross-sectional slices along the x-axis in one dimension (Figure \ref{debug_heightmap_1D}). This approach facilitates verification of the correctness of terrain generation methods discussed in Section \ref{Terrain Procedural Generation}, independent of ray marching or illumination models. Similarly, for debugging the procedural generation of clouds, I created a view that displays a slice of the density map along the x-axis (Figure \ref{debug_clouds}).
+
+To verify the correctness of terrain ray marching independent of illumination, I created a debug view that displays the depth map (Figure \ref{debug_depth}). Similarly, to validate atmosphere simulation, I developed a debug view that shows the optical depth (Section \ref{Optical Depth}) of the view rays (Figure \ref{debug_optical_depth}).
+
+To check the procedural generation of planets, I created a view that displays a slice of the planet's heightmap in 2D (Figure \ref{debug_atmosphere}). Moreover, for testing normal calculations, I employed a simple Lambertian diffuse component, which is visualized along the outline. Furthermore, I visualized the atmospheric density using a color gradient, and tested ray intersections with the sphere by rendering circle and line gizmos.
+
+\myfigurerow
+{0.45}{debug_heightmap_2D}{h}
+{Debug view of the heightmap in 2D.}
+{0.45}{debug_heightmap_1D}
+{Debug view displaying a cross-sectional slice of the heightmap along the x-axis. The blue curve is the slice of the global heightmap in the dual heightmap approach (Section \ref{Dual Heightmap})}
+
+\myfigurerow
+{0.45}{debug_clouds}{h}
+{Debug view of the cloud density map along the x-axis. Red lines denote the boundaries of the cloud bounding box.}
+{0.45}{debug_depth}
+{Visualizing the depth map from ray marching. Brighter colors correspond to longer distances from the camera to surface intersections.}
+
+\myfigurerow
+{0.45}{debug_optical_depth}{h}
+{Visualizing the optical depth of the camera rays. Brighter colors correspond to higher optical depth values.}
+{0.45}{debug_atmosphere}
+{Visualizations to test various components related to procedural planets generation.}
+
+\subsection{Terrain Ray Marching Correctness}
+
+\subsubsection{Error Metrics for Terrain Ray Marching}
+
+To assess the correctness of terrain ray marching, I define two types of errors:
+\begin{enumerate}
+    \item \textbf{Height Difference Error (HDE)}. This measures the vertical distance between the intersection point determined by ray marching and the corresponding point on the heightmap, as shown in Figure \ref{errors}. The HDE is defined for a point $\mathbf{P}$ as:
+
+\begin{equation}
+    \text{HDE}(\mathbf{P})=|\mathbf{P}.y-H(\mathbf{P}).y|
+\end{equation}
+
+    \item \textbf{Intersection Distance Error (IDE)}. This measures the distance between the intersection found by ray marching and the actual ground truth intersection, as illustrated in Figure \ref{errors}. A notable special case includes \textbf{Missed Intersections}, which occur when ray marching fails to detect an intersection that actually exists
+\end{enumerate}
+
+\myfigure{1.0}{errors}{h}
+{The left diagram illustrates the HDE, while the right diagram illustrate the IDE.}
+
+
+\paragraph{Ground Truth Determination}
+Because it is impractical to analytically determine intersections between a ray and a heightmap, I approximate the ground truth intersection using fixed-step ray marching with a small step size and a high number of steps. Due to its computational intensity, this process uses incremental rendering over several frames. Each frame encodes the progress of ray marching into the framebuffer using bit operations on a 32-bit vec4 to encode and decode float values.
+
+\paragraph{Interpretation of Errors}
+\begin{itemize}
+    \item \textbf{HDE} reflects the precision of ray marching: a high HDE suggests a significant vertical misalignment from the terrain surface, potentially causing flickering artifacts of the terrain surface as the camera moves or rotates, as demonstrated in Video REF.
+    \item \textbf{IDE} reflects the accuracy of the intersection calculations: a high IDE indicates that some terrain features might have been erroneously skipped, leading to incorrect representations of terrain shape, with parts potentially missing.
+    \item \textbf{Missed Intersections} represent a critical error where the ray marching algorithm fails to identify an intersection, even though one exists. This issue leads to prominent gaps in the rendered scene, where the sky is visible instead of the expected terrain, as demonstrated in Figure REF.
+\end{itemize}
+
+
+\subsubsection{Experiments}
+
+\textbf{\underline{Goal:}}
+Evaluate the correctness of terrain ray marching within this project by examining how variations in ray marching parameters influence the results.
+
+\textbf{\underline{Parameters Considered:}}
+Four key ray marching parameters are considered:
+\begin{enumerate}
+    \item $a$ -- Initial step size.
+    \item $b$ -- Scaling factor relative to distance.
+    \item $c$ -- Scaling factor relative to height above terrain.
+    \item $k$ -- Number of steps in the binary search.
+\end{enumerate}
+
+As described in Section \ref{Terrain Raymarching}, the step size $s_i$ for each iteration $i$ of the terrain ray marching process is calculated as follows:
+\begin{equation}
+    s_i = a + b \cdot d_i + c \cdot (\mathbf{P}_i.y - H(\mathbf{P}_i.xz))
+\end{equation}
+Once a point goes below the heightmap, $k$ binary search steps are performed to determine the final intersection point.
+
+\textbf{\underline{Method and Results:}}
+I carried out four experiments using my laptop with an AMD Ryzen 7 4800H CPU, 16GB of RAM, and an NVIDIA GeForce RTX 2060 GPU. In each experiment, I measured the IDE and HDE while varying one ray marching parameter at a time, keeping all other parameters constant. Additionally, I measured the frame time averaged over 100 consecutive frames, with the terrain being the only natural element active in the scene. The resolution was maintained at 600x600 pixels throughout the experiments.
+
+
+In \textbf{Experiment 1}, the initial step size $a$ was increased for $a \in \{0.1, 1, 5, 10, 20, 50, 100\}$, while other parameters were held constant: $b = 0.004$, $c = 50$, and $k = 0$.
+
+As shown in the plot in Figure \ref{A-Merged}, the average HDE, IDE, and the number of missed intersections all increase linearly with $a$. This is due to larger $a$ leading to larger step sizes, thereby increasing the likelihood of missing intersections and reducing precision when intersections are detected.
+
+Additionally, the average frame time decreases exponentially as $a$ increases. This reduction is due to the larger step sizes allowing ray marching to either find intersections with fewer steps or to quickly determine the absence of intersections.
+
+\myfigurerow{0.48}{A-Merged}{h!}
+{Results of Experiment 1.}
+{0.48}{B-Merged}
+{Results of Experiment 2.}
+\myfigure{0.8}{B-Ranges}{h!}
+{Results of Experiment 2, for intersections with varying distances from the camera.}
+
+In \textbf{Experiment 2}, the scaling factor relative to distance, $b$, was increased for $b \in \{1, 2, 4, 10, 20, 50, 100\} \times 10^{-3}$, while other parameters were held constant: $a = 5$, $c = 50$, $k = 0$.
+
+As shown in Figure \ref{B-Merged}, similar to Experiment 1, the average HDE, IDE, and the number of missed intersections all linearly increase with $b$. Additionally, the average frame time decreases exponentially as $b$ increases. These trends are attributed to the increase in step sizes caused by higher $b$ values.
+
+
+Moreover, I examined the impacts of the scaling factor $b$ on intersections at various distances from the camera. I classified intersections into three categories based on their proximity: Short Range, Medium Range, and Long Range. According to Figure \ref{B-Ranges}, the increase in the average HDE, IDE, and the number of missed intersections is significantly slower for Short Range intersections. This slower increase can be attributed to the smaller step size increments that result from $b$ when the intersection point is closer to the camera.
+
+
+\myfigurerow{0.48}{C-Merged}{h!}
+{Results of Experiment 3.}
+{0.48}{K-Merged}
+{Results of Experiment 4.}
+
+In \textbf{Experiment 3}, the scaling factor relative to height above ground, $c$, was increased for $c \in \{0, 1, 2, 4, 10, 20, 50, 100\}$, while other parameters were held constant: $a = 5$, $b=0.005$, $k = 0$.
+
+As shown in Figure \ref{C-Merged}, the average HDE, IDE, and number of missed intersections have minimal variation as $c$ increases. This occurs because $c$ significantly influences the step size only when the point is substantially elevated above the terrain, which typically suggests a lower likelihood of encountering terrain along the ray path.
+
+Additionally, average frame time decreases exponentially as $a$ increases. This is because stepsizes are increased when points are high above the terrain surface, allowing ray marching to either find intersections with fewer steps or to quickly determine the absence of intersections.
+
+
+In \textbf{Experiment 4}, the number of binary search steps, $k$, was increased for $k \in \{0, 1, 2, 4, 6, 10, 15, 20\}$, while other parameters were held constant: $a = 5$, $b=0.01$ $c = 50$.
+
+As observed in Figure \ref{K-Merged}, increasing $k$ leads to an exponential decrease in the average HDE, which indicates a significant improvement in ray marching precision with a small number of steps, but with diminishing returns. This is due to each binary search step halving the search range for the intersection.
+
+However, it is also observed that increases in $k$ only affect the average IDE within a narrow range (approximately $50 \pm 3$), and do not alter the number of missed intersections. This is because the binary search is conducted only after an initial intersection is detected, limiting its impact to refining the position between the last and the second-to-last points.
+
+Additionally, the average frame time increases linearly with $k$. This is due to the greater number of binary search steps increases the number of heightmap evaluations.
+
+
+
+
+\section{Performance}
+\label{Performance}
+
+\subsection{Visual Profiling}
+
+\textbf{\underline{Goal:}}
+Understand the computational load distribution across different regions to render various natural elements.
+
+\textbf{\underline{Methods and Results:}}
+I developed heatmap-like debug views to analyze the computational load distribution across different regions. Specifically, I created views for the number of ray marching steps required for terrain and clouds. These heatmaps, illustrated in Figures \ref{profile_terrain} and \ref{profile_clouds} respectively, effectively highlight areas where rendering demands are highest for terrain and clouds. This visualization technique helps pinpoint the computationally expensive regions, facilitating targeted optimizations.
+
+\myfigurerow
+{0.45}{profile_terrain}{h}
+{Heatmap of terrain ray marching steps. Green regions represent areas requiring fewer steps, whereas red regions represent areas requiring more steps, indicating higher computational demand.}
+{0.45}{profile_clouds}
+{Heatmap of number of cloud ray marching steps.}
+
+
+\subsection{Resolution and Natural Elements}
+
+\textbf{\underline{Goal:}} 
+Understand how varying resolutions and different natural elements affect the performance of the application, with a focus on understanding their impact relative to the timing constraints typical in real-time graphics applications.
+
+\textbf{\underline{Method:}}
+I conducted an experiment on my laptop with an AMD Ryzen 7 4800H CPU, 16GB of RAM, and an NVIDIA GeForce RTX 2060 GPU. I measured the average frame time -- the time required to render a single frame, averaged over 100 consecutive frames -- at increasing resolutions. Resolutions tested ranged from $n \times n$ pixels, where $n \in \{50, 100, 200, 300, 400, 600, 800, 1000, 1500, 2000\}$. For each resolution, I recorded the frame time for individual natural elements: terrain, atmosphere, clouds, and trees.
+
+\textbf{\underline{Results:}}
+The results, illustrated in Figure \ref{perf}, demonstrate that frame time scales quadratically with $n$ and linearly with resolution ($n \times n$). This pattern is attributable to the pixel-dependent processes involved in ray marching, coloring, and illumination. A separate plot in Figure \ref{perf_lines} details the frame times for each natural element. The data indicates that trees require the most time to render, primarily due to the computational demands of evaluating their SDF and the necessity of computing the distances to adjacent elements due to domain repetition. Clouds also show significant rendering times, followed by terrain. The atmosphere was the least taxing on frame time, benefiting from simpler exponential density functions and fewer required steps to achieve accurate approximations using Riemann sums.
+
+\myfigure{0.9}{perf}{h}
+{Plot of average frame time versus resolution dimension, with bars indicating the contribution of different natural elements to the frame time.}
+
+\myfigure{0.9}{perf_lines}{h}
+{Plot of average frame time of different natural elements versus resolution dimension.}
+
+Considering the timing constraints in real-time graphics applications, most games target a steady 60 Frames-Per-Second (FPS) to ensure a smooth user experience on modern graphics hardware (CITE). Human perception requires a minimum of 10 to 12 FPS to distinguish motion from still images (CITE), while film and video standards consider 24 or 30 FPS sufficient to view motion without noticeable stutters (CITE).
+
+In my application, rendering all natural elements results in high frame rates only at very low resolutions, with performance dropping below 60 FPS at resolutions around $n \approx 200$ and falling under 30 FPS at $n \approx 300$. Excluding trees improves performance, with the frame rate dropping below 30 FPS when $n \approx 500$. Such low resolutions may be suitable for preview purposes in offline rendering but are inadequate for real-time applications like games. However, rendering only terrain and atmosphere maintains frame rates above 30 FPS up to a more acceptable $n \approx 900$, which is more reasonable for real-time applications.
+
+
+\subsection{Memory Usage}
+
+\textbf{\underline{Goal:}}
+Determine the memory consumption of my application.
+
+\textbf{\underline{Method and Results:}}
+I used RenderDoc, a graphics debugging tool, to assess the static memory allocation — memory allocated for resources that remain constant during runtime. This method does not account for dynamic memory allocation, as my application does not generate resources such as textures dynamically.
+
+The results shows that the application allocates 4 textures and 4 buffers, totaling 9.15 MB in GPU memory for both. This allocation is relatively modest for real-time applications such as games. The reason for the low memory consumption is that my application primarily uses implicit representations, and the only mesh is a screen quad, which requires minimal memory for vertex and index buffers. Additionally, since coloring and texturing are handled procedurally, the only significant texture usage comes from the UI.
+
+
+\subsection{Scene Storage}
+
+\textbf{\underline{Goal:}}
+Determine the storage requirements for scenes in my application.
+
+\textbf{\underline{Methods and Results:}}
+I analyzed the storage by measuring the number of parameters (floats, ints, or bools) in the JSON save file, totaling 301 parameters with a file size of approximately 27.0 KB. This file size is relatively small when compared to the sizes typically associated with mesh data or Neural Implicit Representations. However, the use of JSON for scene storage has limited compatibility as it can only be loaded and interpreted by my application.
+
+To enhance compatibility, I developed an alternative method that generates a fragment shader file, substituting most uniforms with values in the JSON save file. This approach is more compatibile since the shader can be executed on any system that supports GLSL and is configured with a screen quad. The resulting shader file contains 2,339 non-empty lines and is approximately 82.9 KB in size. However, this method does not support interactive adjustments of parameter values at runtime, as the uniforms are converted into constants.

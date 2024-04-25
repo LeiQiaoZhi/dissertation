@@ -11,6 +11,8 @@
 \usepackage{longtable}
 \usepackage{svg}
 \usepackage{dirtree}
+\usepackage{wrapfig}
+
 
 % code highlighting
 \usepackage{minted}
@@ -68,6 +70,45 @@
         }
         \caption{#4}
         \label{#2}
+    \end{figure}
+}
+
+\newcommand{\mywrapfigure}[5]{
+    \begin{wrapfigure}[#5]{#3}{#1\textwidth}
+        \centering
+        \IfFileExists{svgs/#2.svg}{%
+            \includesvg[width=0.9\linewidth]{svgs/#2}%
+        }{%
+            \includegraphics[width=0.9\linewidth]{figures/#2.png}
+        }
+        \caption{#4}
+        \label{#2}
+    \end{wrapfigure}
+}
+
+\newcommand{\myfigurerow}[7]{
+    \begin{figure}[#3]
+        \centering
+        \begin{minipage}[t]{#1\textwidth}
+            \centering
+            \IfFileExists{svgs/#2.svg}{%
+                \includesvg[width=\linewidth]{svgs/#2}%
+            }{%
+                \includegraphics[width=\linewidth]{figures/#2.png}
+            }
+            \caption{#4}
+            \label{#2}
+        \end{minipage}\hfill
+        \begin{minipage}[t]{#5\textwidth}
+            \centering
+            \IfFileExists{svgs/#6.svg}{%
+                \includesvg[width=\linewidth]{svgs/#6}%
+            }{%
+                \includegraphics[width=\linewidth]{figures/#6.png}
+            }
+            \caption{#7}
+            \label{#6}
+        \end{minipage}
     \end{figure}
 }
 

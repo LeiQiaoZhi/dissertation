@@ -28,122 +28,44 @@ Nature, inherently random yet ordered, offers a complex canvas for study. In a f
 To effectively procedurally generate nature, it's crucial to replicate this interplay of \textbf{self-similarity}, \textbf{continuity}, and \textbf{randomness}.
 
 \subsection{Simulating the Properties of Nature}
-
-To simulate these properties, we first consider classical Brownian motion before moving to a more general model, fBm, which embodies randomness, self-similarity, and continuity.
-
-\subsubsection{Classical Brownian Motion}
-
-\question{Shall I cut some technical details here, since classical brownian motion isn't important to my project?} \JM{Probably, it fundamental to what you have done, but is well understood and the reader will likely be familiar with it. Make sure to cite relevant papers on the subject though (a bit difficult with concepts so old, but there will be a good review paper or something).}
-
-Classical Brownian motion, denoted as $B(t)$, serves as an essential model in the study of stochastic processes. It describes the random movement of particles with several key properties:
-
-\begin{enumerate}
-    \item The process begins at a fixed point, typically zero, so $B(0) = 0$.
-    \item  The increments of $B(t)$ over distinct, non-overlapping time intervals are independent. Specifically, for times $t_1 < t_2$ and $t_3 < t_4$ with $t_2 \leq t_3$, the increments $B(t_2) - B(t_1)$ and $B(t_4) - B(t_3)$ are independent of each other.
-    \item The increment $B(t + \Delta t) - B(t)$ is normally distributed with a mean of 0 and a variance of $\Delta t$, described by the normal distribution $\mathcal{N}(0, \Delta t)$.
-    \item The paths of $B(t)$ are continuous at all points but not differentiable at any point.
-\end{enumerate}
-
-Although classical Brownian motion encapsulates elements of randomness and continuity, it lacks self-similarity, a property crucial for mimicking the fractal-like structures observed in nature. 
-
-\subsubsection{fBm}
 \label{FBM}
 
-fBm generalizes the classical Brownian motion model. It incorporates long-range dependence or memory,  by introducing the Hurst exponent, $H$, which ranges between 0 and 1. 
 
-The correlation of increments in fBm is directly influenced by $H$:
-\begin{itemize}
-    \item When $0.5 < H < 1$, the increments exhibit positive correlation, indicating a trend where increases or decreases in the process are likely to be followed by similar movements.
-    \item When $0 < H < 0.5$, the increments display negative correlation.
-    \item When $H=0.5$, fBm simplifies to classical Brownian motion, where increments are independent.
-\end{itemize}
+To model the properties of natural elements, I chose \textbf{fBm} in this project. fBm extends classical Brownian motion, introducing long-range dependence through the Hurst exponent.
 
-On key property of fBm is its self-similar structure, which means its statistical properties remain consistent under appropriate scaling of time and space. This property is a significant deviation from classical Brownian Motion and is vital for modeling phenomena that demonstrate fractal-like patterns. Akin to classical Brownian Motion, fBm maintains continuity in its paths.
+fBm is characterized by self-similarity (\todo{CITE}), meaning its statistical properties are consistent across different scales. Similar to classical Brownian Motion, fBm's paths are continuous and integrate randomness through Gaussian distribution. These properties make fBm suitable for procedural generation of natural elements such as terrain and clouds.
 
-Therefore, fBm has the desired properties of randomness, self-similarity and continuity. It is suitable for procedural generation of elements nature such as terrain and clouds.
+To construct fBm, I employed fractal noises, specifically combining multiple layers of smooth gradient noise such as value noise (Section \ref{value noise}).
 
-\subsubsection{Constructing fBm with Fractal Noises}
-\label{construct fbm}
-
-\question{Shall I put this section in implementation or keep it here in preparation?} \JM{Yes, and the description possibly be trimmed a bit if you include a reference to the original implementation.}
-\todo{trim to a simple text description, and ref implementations}
-
-A method for constructing fBm is to use fractal noises, specifically combining multiple layers of smooth gradient noise such as value noise (Section \ref{value noise}).
-
-\paragraph{Definition of layers}
-
-The construction process starts by defining $n \in \mathbb{Z}^+$ layers of value noise, each with a specific frequency, amplitude, rotation, and translation. 
-
-The key parameters for layer $i$ are:
-
-\begin{enumerate}
-    \item \textbf{Frequency} ($f_i$): Controls the noise pattern's scale. Higher frequencies lead to more intricate patterns.
-    \item \textbf{Amplitude} ($a_i$): Controls the impact of each layer on the overall noise. Typically, higher frequency layers have lower amplitudes.
-    \item \textbf{Rotation}: Represented by a matrix $\mathbf{R_i}$.
-    \item \textbf{Translation/Offset}: Indicated by a vector $\mathbf{o_i}$.
-\end{enumerate}
-
-\paragraph{Parameter Adjustment}
-
-The frequency and amplitude for each layer are defined using constant multiplicative factors, $\alpha$ and $\beta$, respectively. This allows for the simpler expression of the frequency and amplitude for all layers in terms of the initial values $f_0$ and $a_0$:
+First, define $n \in \mathbb{Z}^+$ layers of value noise, each with a specific frequency ($f_i$), amplitude ($a_i$), rotation ($\mathbf{R_i}$), and translation ($\mathbf{o_i}$), defined as:
 
 \begin{align}
-f_i = \alpha^i \cdot f_0 \\
-a_i = \beta^i \cdot a_0
+f_i &= \alpha^i \cdot f_0 \\
+a_{i} &= \beta^i \cdot a_{0}\\
+\mathbf{R_i} &= \mathbf{R}^i \\
+\mathbf{o_i} &= i\cdot\mathbf{o}
 \end{align}
 
-Similarly, rotations and translations are defined using a consistent rotation matrix $\mathbf{R}$ and a translation vector $\mathbf{o}$:
-
-\begin{align}
-\mathbf{R_i} = \mathbf{R}^i \\
-\mathbf{o_i} = i\cdot\mathbf{o}
-\end{align}
-
-\paragraph{Summation of Layers}
-
-The final construction of fBm is achieved through a point-wise summation of these layers. Let $N_k(\mathbf{P})$ represent the value of the k-dimensional noise function at point $\mathbf{P}$. A n-layer fBm at point $\mathbf{P}$ is then given by:
+Finally, do a point-wise summation of these layers. Let $N_k(\mathbf{P})$ represent the value of the k-dimensional noise function at point $\mathbf{P}$. A n-layer fBm at point $\mathbf{P}$ is then given by:
 
 \begin{equation}
     \text{fBm}_k(\mathbf{P}) = \sum_{i=0}^{n} a_i \cdot N_k(f_i \cdot \mathbf{R}_i\mathbf{P} + \mathbf{o}_i)
 \end{equation}
 
-The sum of these adjusted layers results in a noise field that embodies the essential characteristics of fBm -- the smooth gradient noise creates randomness and continuity, and layering noises with different frequencies creates self similarity.
-
-\subsubsection{Value Noise}
-\label{value noise}
-
-\question{Shall I put this section in appendix?}
-\JM{Or perhaps remove, the overall structure of you project is: random noise --- terrain construction + simulation  --- rendering of terrain. If you have to cut one of these for spatial reasons, cut the descriptions of random noise; it is a topic unto itself and not as important to discuss in this context (IMO).}
-\todo{put in appendix for now}
-
-Value noise is a fundamental concept in the field of procedural generation, particularly in the construction of fBm (Section \ref{construct fbm}). This section provides a detailed explanation of value noise.
-
-Let's denote the noise function as $N_k(\mathbf{P})$ for a point $\mathbf{P}$ in $k$-dimensional space. The function operates as follows:
-
-\begin{enumerate}
-    \item \textbf{Grid Definition}: Define a grid over the $k$-dimensional space where each point $\mathbf{p}_i$ on the grid has an associated random value $v_i$. The distribution of $v_i$ is usually uniform.
-
-    \item \textbf{Value Assignment}: Assign a random value $v_i$ to each grid point $\mathbf{p}_i$. These values are generated using a pseudo-random number generator and remain constant for a given seed.
-
-    \item \textbf{Interpolation}: For a point $\mathbf{P}$ not on the grid, identify the surrounding grid points $\{\mathbf{P_{i}\}}$ and interpolate the values $\{v_i\}$ at these points to calculate $N_k(\mathbf{P})$. The interpolation could be linear, cubic, or use other smoothing techniques, depending on the desired smoothness of the noise.
-    
-    \begin{equation}
-        N(\mathbf{P}) = \text{Interpolate}(\{v_i\}, \{\mathbf{P}_i\}, \mathbf{P}) 
-    \end{equation}
-\end{enumerate}
+This result embodies the essential characteristics of fBm -- the smooth gradient noise provides randomness and continuity, and layering noises with different frequencies creates self similarity.
 
 
 \subsection{Implicit Representations}
 
-How can large/infinite complex surfaces such as terrains and clouds be represented? This section focuses on implicit representation as a key solution, and introduces two special types of  implicit representations: heightmaps and Signed Distance Fields (SDFs).
+How can large/infinite complex surfaces such as terrains and clouds be represented? This section focuses on implicit representation as a key solution, and describes two special types of  implicit representations: heightmaps and Signed Distance Fields (SDFs).
 
-\JM{'Introduces' is too strong of a word here; it is usually applied when a novel concept is proposed for the first time.}
+% \JM{'Introduces' is too strong of a word here; it is usually applied when a novel concept is proposed for the first time.}
 
 \subsubsection{Implicit Representation: A Solution for Complex Surfaces}
 
-In digital representation of 3D geometry, explicit methods \JM{representations} like polygon meshes have traditionally been preferred, relying on vertices, edges, and faces to define surfaces. While well-supported in hardware and software, these methods face limitations with large or complex surfaces, leading to high storage and memory demands. Crucially, they also lack the ability to achieve infinite resolution, which is vital for rendering detailed and expansive landscapes.
+In digital representation of 3D geometry, explicit representations like polygon meshes have traditionally been preferred, relying on vertices, edges, and faces to define surfaces. While well-supported in hardware and software, these methods face limitations with large or complex surfaces, leading to high storage and memory demands. Crucially, they also lack the ability to achieve infinite resolution, which is vital for rendering detailed and expansive landscapes.
 
-In contrast, implicit \JM{surface} representation is a powerful alternative. At its core, an implicit equation is a relation in the form of $R(x_1,\dots,x_n)=0$, where $R$ is the implicit function. The solution space of a n-dimensional implicit equation describes the surface of an n-dimensional shape. This allows complex surfaces such as large or even infinite terrains to be defined using a single function. This approach significantly reduces memory and storage requirements compared to traditional mesh-based methods. Additionally, the sign of the implicit function indicates whether the point is inside or outside the surface (negative when inside), which is convenient for ray marching.
+In contrast, implicit surface is a powerful alternative. At its core, an implicit equation is a relation in the form of $R(x_1,\dots,x_n)=0$, where $R$ is the implicit function. The solution space of a n-dimensional implicit equation describes the surface of an n-dimensional shape. This allows complex surfaces such as large or even infinite terrains to be defined using a single function. This approach significantly reduces memory and storage requirements compared to traditional mesh-based methods. Additionally, the sign of the implicit function indicates whether the point is inside or outside the surface (negative when inside), which is convenient for ray marching.
 
 \subsubsection{Heightmaps}
 \label{Heightmap}
@@ -174,14 +96,15 @@ The rendering model of my project utilized ray marching as a per-pixel rendering
 Mathematically the camera ray can be expressed as:
 
 \begin{equation}
- \mathbf{R}(t) = \mathbf{C} + t\mathbf{cr} 
+ \mathbf{R}(t) = \mathbf{C} + t\cdot\mathbf{r_c} 
 \end{equation}
 
 where:
 \begin{itemize}
     \item $\mathbf{C}$ is the ray origin, which is the world coordinates of the camera.
-    \item $\mathbf{cr}$ is the normalized direction vector pointing from the \JM{Use individual letters for symbols}camera towards the pixel.
-    \todo{change the notations globally}
+    \item $\mathbf{r_c}$ is the normalized direction vector pointing from the camera towards the pixel.
+    % \todo{change the notations globally}
+    % \JM{Use individual letters for symbols} 
     \item $t$ is the distance along the ray.
 \end{itemize}
 
@@ -196,7 +119,13 @@ Following this process, this section first introduces ray marching, which is emp
 \subsection{Ray Marching SDFs}
 \label{Raymarching SDFs}
 
-One of the most efficient techniques for rendering scenes composed of SDFs is an algorithm known as Sphere Tracing (\todo{CITE}). In this context, consider a camera ray $\mathbf{R}(t)$, and the scene is assumed to contain multiple SDFs, denoted as $\text{SDF}_1, \dots, \text{SDF}_n$.
+One of the most efficient techniques for rendering scenes composed of SDFs is an algorithm known as \textbf{Sphere Tracing} (\todo{CITE}). In this context, consider a camera ray $\mathbf{R}(t)$, and the scene is assumed to contain multiple SDFs, denoted as $\text{SDF}_1, \dots, \text{SDF}_n$.
+
+\mywrapfigure{0.4}{raymarch_sdf}{r}
+{Illustration of Sphere Tracing for Ray Marching SDFs. 
+% The camera emits a ray that is iteratively advanced by the minimum distance to the surfaces of SDF 1 and SDF 2.
+The ray progresses until it closely approaches the boundary of SDF 2, indicating an intersection. }{}
+% \JM{This figure should be smaller.} \todo{make smaller and inline on the right}
 
 The core idea of Sphere Tracing is to iteratively move along the ray, incrementing the distance $t$ by the smallest distance to any surface in the scene, as illustrated in Figure \ref{raymarch_sdf}. The process is expressed as:
 
@@ -212,13 +141,19 @@ This process continues until the ray either exceeds a predefined maximum distanc
 
 This concept is crucial in the rendering of trees, as discussed in Section \ref{Tree Ray Marching}.
 
-\myfigure{0.7}{raymarch_sdf}{}
-{Illustration of Sphere Tracing for Ray Marching SDFs. The camera emits a ray that is iteratively advanced by the minimum distance to the surfaces of SDF 1 and SDF 2. The ray progresses until it closely approaches the boundary of SDF 2, indicating an intersection. \JM{This figure should be smaller.} \todo{make smaller and inline on the right}}
+
 
 \subsection{Ray Marching Heightmaps}
 \label{Raymarching Heightmaps}
 
 When dealing with a heightmap $H$, the Sphere Tracing algorithm is inapplicable since heightmaps are not SDFs. Here, a more rudimentary form of ray marching, termed the \textbf{fixed-step ray marching algorithm}, is employed.
+
+\mywrapfigure{0.45}{raymarch_terrain}{r}
+{Illustration of Fixed-step Ray Marching for Heightmaps. 
+% The camera emits a ray that is iteratively advanced by a constant distance. The ray progresses until it goes below the terrain, followed by a linear interpolation.
+}{}
+
+
 
 This algorithm advances the ray with a constant step size, $\lambda$:
 
@@ -226,23 +161,18 @@ This algorithm advances the ray with a constant step size, $\lambda$:
     t_{i+1} = t_{i} + \lambda
 \end{equation}
 
-At each step, the algorithm evaluates the implicit function $y-H(x,z)$. It terminates when this function's value drops below zero, indicating an intersection with the heightmap. To refine the exact point of intersection, linear interpolation is used between the last two points. The interpolation process is mathematically expressed as:
+At each step, the algorithm evaluates the implicit function $y-H(x,z)$. It terminates when this function's value drops below zero, indicating an intersection with the heightmap. To refine the exact point of intersection, linear interpolation is used between the last two points, expressed as:
 
 \begin{equation}
 t^\prime = t - \lambda \frac{H(\mathbf{R}(t).xz) - \mathbf{R}(t).y}
     {H(\mathbf{R}(t).xz) - \mathbf{R}(t).y - H(\mathbf{R}(t - \lambda).xz) - \mathbf{R}(t - \lambda).y}
 \end{equation}
 
-where:
-\begin{itemize}
-    \item $t$ is the distance when the camera ray first went below the heightmap.
-    \item $t^\prime$ is the distance after interpolation.
-\end{itemize}
+Here, $t$ is the distance when the camera ray first went below the heightmap, and $t^\prime$ is the distance after interpolation.
 
 This dissertation further explores several optimizations of this algorithm in Section \ref{Terrain Raymarching}. Figure \ref{raymarch_terrain} illustrates the fixed-step ray marching algorithm in action, where it finds the intersection between the camera ray and a 1D heightmap.
 
-\myfigure{0.7}{raymarch_terrain}{}
-{Illustration of Fixed-step Ray Marching for Heightmaps. The camera emits a ray that is iteratively advanced by a constant distance. The ray progresses until it goes below the terrain, followed by a linear interpolation.}
+
 
 
 \subsection{Illumination and Shadows}
@@ -309,48 +239,32 @@ where $\theta$  is the angle between the view direction and the normal to the su
 
 Incorporating Fresnel Reflection into rendering algorithms enhances the realism of materials, especially noticeable in materials like water. 
 
+
 \subsubsection{Shadows}
 \label{Shadows}
+
+\mywrapfigure{0.35}{shadow}{r}
+{Illustration of soft shadow calculations. For the point in penumbra, its shadow ray doesn't intersect with any scene objects, with $d_{\text{min}}$ incurred at $\mathbf{P}_2$.}{20}
+
 
 \paragraph{Hard Shadows}
 The simplest shadow calculation is the binary determination of whether light reaches a point or not, resulting in hard shadows with distinct, sharp edges. In ray marching, a shadow ray is cast from the point of intersection towards the light source, and if any object is encountered, the point is deemed to be in shadow.
 
 \paragraph{Soft Shadows}
-In reality, shadows often exhibit soft edges due to the extended size of light sources, like the Sun. Soft shadows display an \textbf{umbra}, the darker core where light is completely blocked, and a \textbf{penumbra}, the lighter area where the light is partially obscured.
 
-\question{Shall I leave the method below for implementation? It seems redundant to reiterate variations of this algorithm in shadows for terrain and trees.}
-\JM{Yes, and it can likely be shortened quite a bit }
-\todo{trim to a simple text description, and ref implementations}
+In the physical world, shadow edges are often soft due to the finite size of light sources like the Sun, resulting in shadows with an \textbf{umbra}—the fully shadowed region—and a \textbf{penumbra}—the partially illuminated area.
 
-One commonly used method involves modifying the shadow ray's contribution based on the minimum distance to the scene geometry along its path. Here's a standard approach (\todo{cite}):
+A technique to simulate this involves adjusting the shadow contribution based on the nearest distance to the geometry encountered by a shadow ray. Ray marching can approximate this distance, as demonstrated in Figure \ref{shadow}, with a more detailed explanation in Section \ref{Terrain Shadows} and \ref{Tree Shadows}.
 
-\begin{enumerate}
-    \item Cast a shadow ray from the intersection point towards the light source. During ray marching, maintain a record of the minimum distance, denoted as $d_{\text{min}}$ , from the ray to the scene geometry at each step. Moreover, the process terminates immediately if an intersection is found ($d_{\text{min}}\le 0$), indicating hard shadow.
+% \question{Shall I leave the method below for implementation? It seems redundant to reiterate variations of this algorithm in shadows for terrain and trees.}
+% \JM{Yes, and it can likely be shortened quite a bit }
+% \todo{trim to a simple text description, and ref implementations}
 
-    \item Calculate a penumbra factor $P$ based on $d_{\text{min}}$. This factor is used to soften the shadow's edge. As the shadow ray remains distant from surfaces, the penumbra factor increases, softening the shadow. A typical calculation for $P$ might be:
+% Figure \ref{shadow} showcases the soft shadow calculations for two intersections in an example scene, where one intersection lies in the penumbra region, and the other lies in the umbra region.
 
-    \begin{equation}
-       P = \exp(-k \cdot d_{\text{min}})
-    \end{equation}
-
-    where $k$ is a constant that controls the softness of the shadow's edge. A larger value of $k$ results in softer shadows.
-
-    \item Determine the shadow intensity $S$ at the point. In the simplest form, it can be linearly related to the penumbra factor:
-
-    \begin{equation}
-    S = \min(1, P)
-    \end{equation}
-
-    This equation ensures that the shadow intensity smoothly transitions from fully shadowed (0) to fully lit (1).
-\end{enumerate}
-
-Figure \ref{shadow} showcases the soft shadow calculations for two intersections in an example scene, where one intersection lies in the penumbra region, and the other lies in the umbra region.
-
-\myfigure{0.5}{shadow}{}
-{Illustration of soft shadow calculations in a simple example scene. For the point in the penumbra region, its shadow ray doesn't intersect with any scene objects. The minimum distance $d_{\text{min}}$ is incurred at $\mathbf{P}_2$.
-\JM{This figure can be made smaller, try to match the text size to that of the document}
-\todo{make figure smaller and inline on the right}
-}
+% \JM{This figure can be made smaller, try to match the text size to that of the document}
+% \todo{make figure smaller and inline on the right}
+% }
 
 
 \section{Shader Execution}
@@ -373,7 +287,7 @@ When a scene is being rendered, it is divided into fragments. The GPU's control 
 \paragraph{Efficient Parallelisation}
 Many GPU architectures use a SIMD(Single Instruction, Multiple Data) approach. In this model, each core executes the same instruction at the same time but on different data (fragments). This is efficient for fragment shaders because each fragment often undergoes similar processing.
 
-\myfigure{1.0}{gpu_architecture}{}
+\myfigure{0.8}{gpu_architecture}{}
 {Schematic of GPU parallel processing architecture. Fragments are organized into pixel quads, and the Control Unit dispatches tasks for executing fragment shaders to multiple Streaming Multiprocessors and their respective cores.}
 
 \section{Requirement Analysis}

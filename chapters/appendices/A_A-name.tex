@@ -1,3 +1,24 @@
 \label{sec:A}
 
-Appendix A...
+\section{Value Noise}
+\label{value noise}
+
+% \question{Shall I put this section in appendix?}
+% \JM{Or perhaps remove, the overall structure of you project is: random noise --- terrain construction + simulation  --- rendering of terrain. If you have to cut one of these for spatial reasons, cut the descriptions of random noise; it is a topic unto itself and not as important to discuss in this context (IMO).}
+% \todo{put in appendix for now}
+
+Value noise is a fundamental concept in the field of procedural generation, particularly in the construction of fBm (Section \ref{construct fbm}). This section provides a detailed explanation of value noise.
+
+Let's denote the noise function as $N_k(\mathbf{P})$ for a point $\mathbf{P}$ in $k$-dimensional space. The function operates as follows:
+
+\begin{enumerate}
+    \item \textbf{Grid Definition}: Define a grid over the $k$-dimensional space where each point $\mathbf{p}_i$ on the grid has an associated random value $v_i$. The distribution of $v_i$ is usually uniform.
+
+    \item \textbf{Value Assignment}: Assign a random value $v_i$ to each grid point $\mathbf{p}_i$. These values are generated using a pseudo-random number generator and remain constant for a given seed.
+
+    \item \textbf{Interpolation}: For a point $\mathbf{P}$ not on the grid, identify the surrounding grid points $\{\mathbf{P_{i}\}}$ and interpolate the values $\{v_i\}$ at these points to calculate $N_k(\mathbf{P})$. The interpolation could be linear, cubic, or use other smoothing techniques, depending on the desired smoothness of the noise.
+    
+    \begin{equation}
+        N(\mathbf{P}) = \text{Interpolate}(\{v_i\}, \{\mathbf{P}_i\}, \mathbf{P}) 
+    \end{equation}
+\end{enumerate}
