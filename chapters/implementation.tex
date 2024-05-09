@@ -1,8 +1,6 @@
 \label{sec:3}
 
-The app's workflow, as shown in Figure \ref{pipeline}, consists of three main stages: user interface (UI), procedural generation, and rendering.
-
-Given the project's scope -- encompassing the procedural generation and rendering of multiple natural elements -- it is practical to discuss each element individually, treating UI as a distinct subject.
+The app's workflow, as shown in Figure \ref{pipeline}, consists of three main stages: user interface (UI), procedural generation, and rendering. Given the project's scope -- encompassing the procedural generation and rendering of multiple natural elements -- it is practical to discuss each element individually, treating UI as a distinct subject.
 
 The chapter begins with an overview of the implementation, followed by detailed sections on each natural element: terrain, trees, water, clouds, and the atmosphere. Finally, it discusses input handling, the UI, and how the app was extended to project procedural terrain onto a sphere to generate planets.
 
@@ -38,11 +36,11 @@ It is worth noting that while procedural generation is a distinct stage in the c
 For flat, infinite worlds, following the flowchart in Figure \ref{shader_order}, the fragment shader operates in this sequence:
 \begin{enumerate}
     \item Compute camera and sun rays.
-    \item Perform ray marching and render terrain and trees.
+    \item Ray march and render terrain and trees.
     \item For pixels with an intersection with terrain or trees, determine the intersection with the water surface and render the water.
     \item For pixels without intersections, render the sun disk.
     \item Simulate atmospheric Rayleigh scattering for each pixel, resulting in atmospheric perspective effects for intersected pixels, and determining the sky color for pixels without intersections.
-    \item Render clouds (two layers: 3D below, 2D above).
+    \item Render clouds.
 \end{enumerate}
 
 \myfigure{0.8}{shader_order}{}
@@ -80,12 +78,12 @@ These steps establish the direction of each ray from the camera to the pixel in 
 \subsubsection{Calculating the Sun Ray}
 \label{Sun Ray}
 
-In this project, the \textbf{sun ray}, $\mathbf{sr}$, is the normalized vector from a point in the world, towards the sun. The sun is treated as a directional light source due to its immense distance from Earth, implying that the sun rays are parallel at every point.
+In this project, the \textbf{sun ray}, $\mathbf{r_s}$, is the normalized vector from a point in the world, towards the sun. The sun is treated as a directional light source due to its immense distance from Earth, implying that the sun rays are parallel at every point.
 
-The sun ray's direction is represented using spherical coordinates, which offer a convenient method to define the direction in 3D space using only two parameters: azimuth ($\phi$) and elevation ($\theta$). These parameters are adjustable in the UI, allowing run-time changes to the sun ray. $\mathbf{sr}$ is computed as follows:
+The sun ray's direction is represented using spherical coordinates, which offer a convenient method to define the direction in 3D space using only two parameters: azimuth ($\phi$) and elevation ($\theta$). These parameters are adjustable in the UI, allowing run-time changes to the sun ray. $\mathbf{r_s}$ is computed as follows:
 
 \begin{equation}
-    \mathbf{sr} = \text{normalize}\left( \begin{bmatrix} \sin(\theta) \cos(\phi) \\ \cos(\theta) \\ \sin(\theta) \sin(\phi) \end{bmatrix} \right)
+    \mathbf{r_s} = \text{normalize}\left( \begin{bmatrix} \sin(\theta) \cos(\phi) \\ \cos(\theta) \\ \sin(\theta) \sin(\phi) \end{bmatrix} \right)
 \end{equation}
 
 This vector is critical for lighting calculations in the rendering process.
@@ -180,6 +178,7 @@ In summary, the dual heightmap approach effectively blends local details with gl
 
 
 \subsubsection{Domain Distortion}
+\label{Domain Distortion}
 
 To create terrain with natural variation, my project applies \textbf{domain distortion} to the heightmap. Domain distortion operates by modifying the input domain of a function before evaluation. For a given function $f(x)$, the domain is first distorted by a function $g(x)$, yielding $f(g(x))$ instead of the $f(x)$.
 
@@ -242,7 +241,7 @@ The step size in ray marching is dynamically adjusted based on two factors:
 \mywrapfigure{0.6}{bs}{r}
 {Comparing linear interpolation and binary search for terrain intersections. The right diagram shows a 2-step binary search, where $\mathbf{M}_1$ is below the terrain, leading to $\mathbf{M}_2$ being the midpoint between $\mathbf{P}_2$ and $\mathbf{M}_1$. }{}
 
-The final stage in the ray marching process involves refining the intersection point for enhanced precision. Traditionally (Section \ref{Raymarching Heightmaps}), this is done through linear interpolation between the last two points, where  $\mathbf{B}$ is the point below the terrain and $\mathbf{A}$ is above it. In my approach, I have improved this process by employing a binary search method, allowing for a more precise determination of the intersection, as illustrated in Figure \ref{bs}.
+The final stage in the ray marching process involves refining the intersection point for enhanced precision. Traditionally (Section \ref{Raymarching Heightmaps}), this is done through linear interpolation between the last two points, where  $\mathbf{B}$ is the point below the terrain and $\mathbf{A}$ is above it. In my approach, I have improved this process by employing a binary search method, allowing for a more precise intersection determination, as illustrated in Figure \ref{bs}.
 
 % \begin{algorithm}
 % \caption{Binary Search Refinement for Terrain Intersections}
@@ -296,7 +295,7 @@ This dynamic boundary adjustment is demonstrated in action in Figure \ref{region
 
 
 \paragraph{The Grass Region}
-In the grass region, coverage is determined by the slope's steepness. A predefined threshold controls where grass appears: only on surfaces where the normal's y-component is below the threshold, indicating flatter regions, grass is rendered. Interpolation is used to ensure smooth transition. 
+In the grass region, coverage is determined by the slope's steepness. A predefined threshold controls where grass appears: grass is rendered only on surfaces where the normal's y-component is below the threshold, indicating flatter regions. Interpolation is used to ensure smooth transition. 
 
 Variation in the grass region is introduced by altering the coloration. By evaluating another 2D fBm on a point's xz coordinates, I smoothly transition between two distinct grass colors via interpolation. This method provides a more dynamic and visually appealing representation of grassy areas, as depicted in Figure \ref{grass}, which showcases the color-varied grass.
 
@@ -320,9 +319,9 @@ In steep areas, I have procedurally generated a rock texture resembling striped 
 \subsubsection{Shading}
 \label{Terrain Shading}
 
-In shading the terrain, I utilized the Phong reflection model (Section \ref{Phong}), complemented by Fresnel Reflection (Section \ref{Fresnel}). The Phong model requires several inputs: the intersection point determined through ray marching (Section \ref{Terrain Raymarching}), the material color via procedural coloring (Section \ref{Terrain Procedural Texturing}), the incident light direction from the sun's spherical coordinates (Section \ref{Sun Ray}), and the terrain normal, analytically derived from the heightmap (outlined in Section \todo{REF}).
+In shading the terrain, I utilized the Phong reflection model \cite{phong_illumination_1975}, complemented by Fresnel Reflection (Section \ref{Fresnel}). The Phong model requires several inputs: the intersection point determined through ray marching (Section \ref{Terrain Raymarching}), the material color via procedural coloring (Section \ref{Terrain Procedural Texturing}), the incident light direction from the sun's spherical coordinates (Section \ref{Sun Ray}), and the terrain normal, analytically derived from the heightmap (outlined in Section \todo{REF}).
 
-I followed Equations \ref{ambient}, \ref{diffuse} and \ref{specular} to calculate the ambient, diffuse, and specular terms in the Phong model. The model's parameters are adjustable in the application's UI.
+% I followed Equations \ref{ambient}, \ref{diffuse} and \ref{specular} to calculate the ambient, diffuse, and specular terms in the Phong model. The model's parameters are adjustable in the application's UI.
 
 For added realism, the Phong shading model is augmented with Fresnel Reflection. Using Schlick's approximation (Equation \ref{schlick}) to compute the Fresnel term, $F(\theta)$, the specular term within the Phong model, $I_s$, is modified from Equation \ref{specular} to be:
 
@@ -354,10 +353,10 @@ Here, $I_{a}$, $I_{d}$, and $I_{s}$ are the ambient, diffuse, and specular contr
 \caption{Terrain Shadow Calculation}
 \label{algo:soft shadow terrain}
 \begin{algorithmic}
-\Function{terrain\_shadow}{$\mathbf{X}, \mathbf{sr}$}
+\Function{terrain\_shadow}{$\mathbf{X}, \mathbf{r_s}$}
     \State $d_{\text{min}} \gets \infty$
     \For{$i = 0$ to $s_{\text{max}}$}
-        \State $\mathbf{P}_i \gets \mathbf{X} + i \cdot s \cdot \mathbf{sr}$
+        \State $\mathbf{P}_i \gets \mathbf{X} + i \cdot s \cdot \mathbf{r_s}$
         \State $d_i \gets \mathbf{P}_i.y - H(\mathbf{P}_i.xz)$
         \State $d_{\text{min}} \gets \min(d_{\text{min}}, \frac{d_i}{i \cdot s})$
     \EndFor
@@ -492,7 +491,7 @@ To achieve this effect, following Algorithm \ref{algo: tree shadow}, I accumulat
 \Function{TreeShadow}{$\mathbf{P}$}
     \State $D \gets 0$
     \For{$t = 0$ to $t_{\text{max}}$ step $s$}
-        \State $\mathbf{P}_s \gets \mathbf{P} + t \cdot \mathbf{sr}$
+        \State $\mathbf{P}_s \gets \mathbf{P} + t \cdot \mathbf{r_s}$
         \State $d \gets \text{tree\_sdf}(\mathbf{P}_s)$
         \If{$d < \lambda$}
             \State $D \gets D + (d - \lambda) \cdot t$
@@ -576,6 +575,7 @@ Shading follows similar techniques as for terrain, utilizing the Phong model wit
 Reflections, although not implemented, could be approximated by rendering from the intersection point, using the reflected ray as the camera ray, limiting recursive renders, and weighting the reflection results progressively less. \question{Shall I talk about how reflections could be done in Conclusion: Future Extensions?}
 
 \section{Atmosphere}
+\label{Atmosphere}
 
 This section outlines the physics-based rendering technique implemented for simulating atmospheric effects, primarily focusing on Rayleigh scattering. This phenomenon, caused by the interaction of sunlight with minuscule atmospheric particles, is crucial for achieving authentic sky colors and atmospheric perspective, as demonstrated in renders in Figure \ref{atmosphere}  and \ref{atmospheric} respectively.
 
@@ -627,7 +627,7 @@ In the integral:
 \begin{itemize}
     \item $\mathbf{P}$ is a point on the segment between $\mathbf{C}$ and $\mathbf{E}$. $P = \mathbf{R}(s) = \mathbf{C} + s \cdot \mathbf{r_c}$, where $\mathbf{R}$ is the camera ray.
     \item $t$ is the out-scattering function.
-    \item $\mathbf{S}$ is the intersection between the atmosphere's upper boundary with the ray with origin $\mathbf{P}$ and direction $\mathbf{sr}$, as depicted in Figure \ref{inscatter}.
+    \item $\mathbf{S}$ is the intersection between the atmosphere's upper boundary with the ray with origin $\mathbf{P}$ and direction $\mathbf{r_s}$, as depicted in Figure \ref{inscatter}.
     \item $H_0$ is a parameter adjustable in the UI.
 \end{itemize}
 
@@ -768,13 +768,9 @@ Ray marching is terminated under one of three conditions:
 
 \subsubsection{Illumination and Shadows}
 
-Lighting is calculated at every sample point in the volumetric rendering process.
+Lighting is calculated at every sample point in the volumetric rendering process. The Phong model \cite{phong_illumination_1975} is adapted here by excluding the specular term, since the primary visual characteristics of particles in clouds are diffuse scattering and translucency. 
 
-The Phong model (Section \ref{Phong}) is adapted here by excluding the specular term, since the primary visual characteristics of particles in clouds are diffuse scattering and translucency. 
-
-Shadows within the clouds, resulting from cloud particles obstructing light from other particles, are rendered using a technique called volumetric shadowing
-
-This process involves marching a ray along the direction of the sun ray and accumulating the density of cloud particles at various points along this path. Higher densities indicate a greater number of particles blocking the light, resulting in deeper shadows at the sample point. Conversely, lower densities suggest fewer particles and less shadowing
+Shadows within the clouds, resulting from cloud particles obstructing light from other particles, are rendered using a technique called volumetric shadowing. This process involves marching a ray along the direction of the sun ray and accumulating the density of cloud particles at various points along this path. Higher densities indicate a greater number of particles blocking the light, resulting in deeper shadows at the sample point. Conversely, lower densities suggest fewer particles and less shadowing
 
 \subsubsection{Blending}
 \label{Cloud Blending}
@@ -799,17 +795,100 @@ Here, $\alpha$ prioritizes points with higher density, while the factor $(\alpha
 
 \subsubsection{Sunlight Penetration Effect}
 
-An additional effect emulates sunlight filtering through clouds, especially noticeable when the sun is behind them, as demonstrated in Figure \ref{clouds_sun}. This is achieved by augmenting $\mathbf{c}$ with the sun's color $\mathbf{c}_{\text{sun}}$, modulated by $\mathbf{c}.\alpha$, and the angle between the camera ray direction $\mathbf{r_c}$ and the sun direction $\mathbf{sr}$:
+An additional effect emulates sunlight filtering through clouds, especially noticeable when the sun is behind them, as demonstrated in Figure \ref{clouds_sun}. This is achieved by augmenting $\mathbf{c}$ with the sun's color $\mathbf{c}_{\text{sun}}$, modulated by $\mathbf{c}.\alpha$, and the angle between the camera ray direction $\mathbf{r_c}$ and the sun direction $\mathbf{r_s}$:
 
 \begin{equation}
-  \mathbf{c}.rgb \mathrel{+}= a \cdot \mathbf{c}_{\text{sun}} \cdot (1 - b \cdot \mathbf{c}.\alpha) \cdot (\text{clamp}(\mathbf{r_c} \cdot \mathbf{sr}, 0, 1))^ c
+  \mathbf{c}.rgb \mathrel{+}= a \cdot \mathbf{c}_{\text{sun}} \cdot (1 - b \cdot \mathbf{c}.\alpha) \cdot (\text{clamp}(\mathbf{r_c} \cdot \mathbf{r_s}, 0, 1))^ c
 \end{equation}
 
-Here, $a,b,c$ are parameters that are adjustable in the UI. $\mathbf{c}.\alpha$ indicates the cumulative cloud density along the camera ray, with a lower value indicating less cloud density and therefore more sunlight filtering through. Moreover, the effect is stronger when the camera ray is closely aligned with the sun ray, indicated by $\mathbf{r_c}\cdot \mathbf{sr}$.
+Here, $a,b,c$ are parameters that are adjustable in the UI. $\mathbf{c}.\alpha$ indicates the cumulative cloud density along the camera ray, with a lower value indicating less cloud density and therefore more sunlight filtering through. Moreover, the effect is stronger when the camera ray is closely aligned with the sun ray, indicated by $\mathbf{r_c}\cdot \mathbf{r_s}$.
 
 \myfigure{0.8}{clouds_sun}{}
 {Comparison of Cloud Renders Demonstrating Sunlight Penetration Effect: The left image with the effect turned off, and the right image with the effect enabled.}
 
+\section{Procedural Planets}
+
+Since development was on schedule, I had time to implement an extension: applying the existing procedural generation and rendering of natural elements to planets. This section explains how I generate planet heightmaps, render the planet surface, and incorporate water and atmosphere.
+
+\subsection{Heightmap Generation}
+
+\minipagewrap{0.62}{planet_heightmap}{}
+{Planet heightmap.}{
+In my project, the heightmaps of planets differ from those of flat terrains. For a planet centered at point $\mathbf{O}$, given a direction $\mathbf{OP}$, the point $\mathbf{I}$ is where the ray in the direction of $\mathbf{OP}$ intersects the planet's surface. The heightmap function $H_{\text{planet}} (\mathbf{P})$ returns the length $\|\mathbf{OI}\|$, as illustrated in Figure \ref{planet_heightmap}.
+}
+
+To calculate $H_\text{planet} (\mathbf{P})$, I used triplanar projection (CITE) to project 3 heightmaps onto a sphere, computed as:
+
+\begin{equation}
+\begin{aligned}
+H_\text{planet} (\mathbf{P}) = 
+&H(\mathbf{P}.zy + f(\operatorname{sgn}(\mathbf{P}.x))) \times w_{x}+ \\
+&H(\mathbf{P}.xz + f(\operatorname{sgn}(\mathbf{P}.y))) \times w_{y}+ \\
+&H(\mathbf{P}.xy + f(\operatorname{sgn}(\mathbf{P}.z))) \times w_{z}
+\end{aligned}
+\end{equation}
+
+Here, $H$ is the terrain heightmap (Section \ref{Terrain Procedural Generation}), the function $f$ ensures that opposite sides of the planet do not share the same elevation, and the weights $w_x,w_y,w_z$ are computed as follows:
+
+\begin{equation}
+\begin{aligned}
+w_{x} &= \hat{|\mathbf{OP}}.x|^{k} \\
+w_{y} &= \hat{|\mathbf{OP}}.y|^{k} \\
+w_{z} &= \hat{|\mathbf{OP}}.z|^{k} \\
+\label{tri weights}
+\end{aligned}
+\end{equation}
+
+These weights are then normalized to sum up to 1. The parameter $k$ controls the blending sharpness between heightmaps, as illustrated in Figure \ref{k1}.
+
+
+\mysubfigurerowthree{0.3}{k1}{h!}
+{$k=1$}
+{k10}{$k=10$}
+{k100}{$k=100$}
+{Comparison of triplanar-projected heightmaps with varying sharpness (\( k \)). Surface colors represent heightmap values, where black indicates high values and white indicates low values.}
+
+\subsection{Ray Marching}
+
+Similar to terrain ray marching (Section \ref{Terrain Raymarching}), I used fixed-step ray marching for the planet's heightmap, incorporating early termination and dynamic step sizes. As an additional optimization, if the camera is outside the planet's bounding sphere, I begin ray marching from the camera ray's intersection with this sphere.
+
+\subsection{Procedural Coloring, Illumination and Shadows}
+
+The procedural coloring, illumination, and shadow techniques are largely similar to those used for flat terrain (Section \ref{Terrain}), with a few notable differences.
+
+Sinec the planet heightmap is a combination of three separate heightmaps, their normals need to be combined as well, a technique called triplanar normal mapping. First, the Whiteout Blend method (CITE) is used to blend the three normals along with the normal of the sphere at point $\mathbf{P}$, denoted as $\hat{\mathbf{OP}}$. The three normals are transformed from tangent space to world space and then blended using the weights for heightmap triplanar projection (Equation \ref{tri weights}). The code for this normal blending process is provided in Appendix \todo{REF}.
+
+This approach ensures smooth and accurate normal calculations, as illustrated in Figure \ref{normal1}.
+
+\mysubfigurerowthree{0.3}{normal1}{h!}
+{Sphere normal.}
+{normal2}{Planet normal.}
+{normal3}{Shaded planet.}
+{Visualizations of triplanar normal mapping.}
+
+\subsection{Other Natural Elements}
+
+\subsubsection{Water}
+
+For planets, I model water surfaces as spheres rather than planes. To render water, I first calculate the intersection between the camera ray and the water surface (Appendix REF details how to find the intersection between a ray and a sphere). Procedural coloring (Section REF) and illumination (Section REF) are then applied similarly to how they are for water on flat terrain.
+
+\subsubsection{Spherical Atmosphere}
+
+The atmospheric density is still modeled as an exponential function based on altitude. However, the atmosphere is bounded by a sphere instead of a plane. For approximating the in-scattering equation, I only consider the segment of the ray that lies within the bounding sphere.
+
+\subsection{Example Output}
+
+Figure \ref{planet1} and \ref{planet4} display various planetary scenes rendered by my application. Refer to the accompanying video submission to see real-time navigation through these scenes.
+
+\mysubfigurerowthree{0.3}{planet1}{h!}{}
+{planet2}{}
+{planet3}{}
+{Example renders of an earth-like procedural planet in my application.}
+
+\mysubfigurerowthree{0.3}{planet4}{h!}{}
+{planet5}{}
+{planet6}{}
+{Example renders of various procedural planets in my application.}
 
 \section{Input Controls}
 
@@ -817,10 +896,12 @@ Here, $a,b,c$ are parameters that are adjustable in the UI. $\mathbf{c}.\alpha$ 
 
 In this project, the scene features an infinitely expansive terrain, making traditional CAD camera controls like turn-table or trackball models unsuitable. A game-like camera control model was adopted for more intuitive navigation in such an extensive environment. The camera movement is controlled by the WASD and EQ keys, which allow movement along the three axes of the camera's coordinate system. The left mouse button drag controls the forward direction of the camera, while the scroll wheel adjusts the focal length. Right mouse dragging enables movement in the plane perpendicular to the forward direction. 
 
+Moreover, I added trackball camera controls \cite{noauthor_object_nodate} for navigating planets in my planet extension (Section \todo{REF}), and included an option in the UI to switch control modes.
+
 Camera parameters, including position and rotation, are first updated on the CPU using GLFW, and then passed as uniforms to the fragment shader. For detailed adjustments, the precise position and rotation can be fine-tuned through the UI.
 
 \myfigure{0.4}{camera}{}
-{This screenshot displays the camera panel in the UI, featuring adjustable settings and camera transforms.}
+{This screenshot displays the camera panel in the UI, featuring adjustable settings and camera transforms. \todo{update and make inline}}
 
 This control model enables efficient navigation through the extensive virtual world, proving especially useful for debugging and locating ideal camera angles for rendering.
 
@@ -832,17 +913,12 @@ To address GLFW's limitation of handling only one callback per event, a centrali
 
 \subsection{Hierarchical Structure}
 
-The UI of the application is designed following a hierarchical structure, represented in Figure \ref{ui_hierarchy}.
+\mywrapfigure{0.4}{ui_hierarchy}{r}
+{Outlines the hierarchical structure of the UI.}{}
 
-\begin{itemize}
-    \item \textbf{App Level}: The App is the singleton entity at the top level.
-    \item \textbf{Panel Level}: Within the App, multiple panels are present. Each panel inherits from a common abstract class.
-    \item \textbf{Property Level}: Each panel comprises several properties. These properties are again derived from an abstract class and are responsible for managing individual or groups of parameters.
-    \item \textbf{Parameter Management}: The properties are directly tied to the parameters essential to the procedural generation and rendering parts of the app. They correspond to uniforms on the GPU, facilitating real-time updates. UI interactions trigger updates to the corresponding uniforms in the GPU.
-\end{itemize}
+The UI of the application was implemented following an Object-Oriented approach and a hierarchical structure, represented in Figure \ref{ui_hierarchy}.
 
-\myfigure{0.5}{ui_hierarchy}{}
-{Outlines the hierarchical structure of the UI.}
+The \textbf{App} is the singleton entity at the top level, containing multiple \textbf{panels}. Each panel inherits from a common abstract class, and comprises several \textbf{properties}. These properties are again derived from an abstract class and are responsible for managing individual or groups of parameters. The parameters correspond to uniforms on the GPU, facilitating real-time updates. UI interactions trigger updates to the corresponding uniforms in the GPU.
 
 The hierarchy in implementation directly corresponds to the visual structure of the UI, as illustrated in Figure \ref{ui_visual}.
 
@@ -860,7 +936,7 @@ In enhancing the UI's flexibility and organizational structure, the \textbf{Comp
 
 Both elements allows for efficient space usage and better categorization, as demonstrated in Figure \ref{composite}.
 
-\myfigure{0.8}{composite}{}
+\myfigure{0.6}{composite}{}
 {Demonstrates GroupProperty and TabPanel. GroupProperty allows several properties to be organized into a collapsible group. TabPanel allows several panels to be organized as tabs in a single panel.}
 
 \subsection{Save and Load}
@@ -901,12 +977,15 @@ A typical JSON file structure for saving the app's parameters resembles the foll
 
 \subsection{Layout Preferences}
 
+\mywrapfigure{0.6}{save}{r}
+{Demonstrates the UI of save and load functionalities.}{8}
+
 In addition to parameter values, layout preferences such as the sizes and positions of panels are also managed through the save and load system. As shown in Figure \ref{save}, the menu bar includes options for saving and loading these layout configurations, further enhancing the app’s user experience.
 
-\myfigure{0.8}{save}{H}
-{Demonstrates the UI of save and load functionalities.}
 
 \section{Repository Overview}
+
+Figure \ref{repo overview} presents the high-level structure of the project's code repository, showing the organization of key directories and files. Header files (.h) are omitted for clarity. All code was written from scratch, except for the use of third-party libraries.
 
 % \renewcommand{\arraystretch}{1.5}
 
@@ -940,53 +1019,53 @@ In addition to parameter values, layout preferences such as the sizes and positi
 .1 /.
 .2 Source/.
 .3 Input/.
-.4 Camera.cpp.\DTcomment{Encapsulates camera transform and parameters}.
+.4 Camera.cpp.\DTcomment{Encapsulates camera transforms and parameters}.
 .4 CameraController.cpp.\DTcomment{Controls the camera}.
 .4 CallbackManager.cpp.\DTcomment{Manages GLFW callbacks}.
 .3 Pipeline/.
-.4 Main.cpp.\DTcomment{Entry point of the app}.
+.4 Main.cpp.\DTcomment{Application entry point}.
 .4 Window.cpp.\DTcomment{Encapsulates GLFW windows}.
-.4 Shader.cpp.\DTcomment{Encapsulates OpenGL shaders, preprocesses and compiles shaders}.
+.4 Shader.cpp.\DTcomment{Handles OpenGL shaders, includes preprocessing and compilation}.
 .4 FBO.cpp.\DTcomment{Encapsulates OpenGL Framebuffer Objects}.
 .4 VAO.cpp.\DTcomment{Encapsulates OpenGL Vertex Array Objects}.
 .4 VBO.cpp.\DTcomment{Encapsulates OpenGL Vertex Buffer Objects}.
 .4 EBO.cpp.\DTcomment{Encapsulates OpenGL Element Buffer Objects}.
-.4 FPSCounter.cpp.\DTcomment{Counts FPS}.
+.4 FPSCounter.cpp.\DTcomment{Tracks FPS}.
 .3 UI/.
-.4 App/.\DTcomment{Contains the top-level UI class}.
-.4 Panels/.\DTcomment{Contains classes for different UI panels}.
-.4 Properties/.\DTcomment{Contains various UI properties}.
+.4 App/.\DTcomment{Top-level UI class}.
+.4 Panels/.\DTcomment{UI panels classes}.
+.4 Properties/.\DTcomment{UI properties classes}.
 .3 Shaders/. 
-.4 Main.vert/.\DTcomment{A minimal VS for the screen quad}.
-.4 Main.frag/.\DTcomment{The main FS for the screen quad, the entry point}.
-.4 Debug.frag/.\DTcomment{Renders various debugging views}.
-.4 Shading.frag/.\DTcomment{Illumination and shadows for terrain, trees and water}.
-.4 Raymarching.frag/.\DTcomment{Ray marching for terrain and trees}.
-.4 Clouds.frag/.\DTcomment{Clouds procedural generation and volumetric rendering}.
-.4 Trees.frag/.\DTcomment{Trees procedural generation}.
-.4 Planet.frag/.\DTcomment{Planet procedural generation}.
-.4 ValueNoise.frag/.\DTcomment{Value noise}.
-.4 IntersectionDistanceError.frag/.\DTcomment{Computes IDE incrementally}.
-.4 HeightDifferenceError.frag/.\DTcomment{Computes HDE}.
-.4 fBm.frag/.\DTcomment{Fractal-noise implementation of fBm}.
-.4 Terrain.frag/.\DTcomment{Heightmap procedural generation}.
-.4 SphericalAtmosphere.frag/.\DTcomment{Atmosphere Simulation for planets}.
+.4 Main.vert/.\DTcomment{VS for the screen quad}.
+.4 Main.frag/.\DTcomment{FS for the screen quad}.
+.4 Debug.frag/.\DTcomment{Renders debug views}.
+.4 Shading.frag/.\DTcomment{Handles lighting and shadows}.
+.4 Raymarching.frag/.\DTcomment{Implements ray marching}.
+.4 Clouds.frag/.\DTcomment{Clouds generation and volumetric rendering}.
+.4 Trees.frag/.\DTcomment{Trees generation}.
+.4 Planet.frag/.\DTcomment{Planet generation}.
+.4 ValueNoise.frag/.\DTcomment{Implements value noise}.
+.4 IntersectionDistanceError.frag/.\DTcomment{Calculates IDE incrementally}.
+.4 HeightDifferenceError.frag/.\DTcomment{Calculates HDE}.
+.4 fBm.frag/.\DTcomment{Implements of fBm}.
+.4 Terrain.frag/.\DTcomment{Heightmap generation}.
+.4 SphericalAtmosphere.frag/.\DTcomment{Atmosphere simulation for planets}.
 .4 Atmosphere.frag/.\DTcomment{Atmosphere simulation}.
-.4 Profiling.frag/.\DTcomment{Macros for profiling}.
+.4 Profiling.frag/.\DTcomment{Profiling macros}.
 .4 TwoDSky.frag/.\DTcomment{2D sky and clouds}.
 .4 Encoding.frag/.\DTcomment{Encoding between floats and vec4s}.
 .4 TerrainMaterial.frag/.\DTcomment{Terrain procedural coloring}.
-.4 Water.frag/.\DTcomment{Water normal map and }.
-.4 Sun.frag/.\DTcomment{Sun direction and sun disk}.
+.4 Water.frag/.\DTcomment{Water normal map}.
+.4 Sun.frag/.\DTcomment{Calculates the sun direction and renders the sun disk}.
 .4 SmoothStep.frag/.\DTcomment{Smoothstep functions}.
 .4 Hash.frag/.\DTcomment{Hash functions}.
-.4 Constants.frag/.\DTcomment{Contains useful constants}.
-.4 Motion.frag/.\DTcomment{Contains uniforms for animations.}.
+.4 Motion.frag/.\DTcomment{Manages animations.}.
 .3 Evaluation/.\DTcomment{Python scripts and notebooks for evaluation}.
 .2 CMakeLists.txt.\DTcomment{CMake script for compilation}.
-.2 LICENSE.txt.\DTcomment{License for this project}.
+.2 LICENSE.txt.\DTcomment{Project license}.
 }
-\caption{Repository Overview}
+\caption{Repository overview}
+\label{repo overview}
 \end{figure}
 
 % DONE

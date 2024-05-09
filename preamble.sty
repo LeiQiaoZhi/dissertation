@@ -12,6 +12,8 @@
 \usepackage{svg}
 \usepackage{dirtree}
 \usepackage{wrapfig}
+\usepackage{caption}    % For caption outside of figure environment
+\usepackage{subcaption}  % For sub-figures
 
 
 % code highlighting
@@ -60,14 +62,22 @@
 % \end{figure}
 % }
 
+\newcommand{\myincludegraphics}[2]{
+    \IfFileExists{svgs/#2.svg}{%
+        \includesvg[width=#1]{svgs/#2}%
+    }{%
+        \IfFileExists{svgs/#2.pdf}{%
+            \includegraphics[width=#1]{svgs/#2.pdf}%
+        }{%
+            \includegraphics[width=#1]{figures/#2.png}%
+        }%
+    }
+}
+
 \newcommand{\myfigure}[4]{
     \begin{figure}[#3]
         \centering
-        \IfFileExists{svgs/#2.svg}{%
-            \includesvg[width=#1\textwidth]{svgs/#2}%
-        }{%
-            \includegraphics[width=#1\textwidth]{figures/#2.png}
-        }
+        \myincludegraphics{#1\textwidth}{#2}
         \caption{#4}
         \label{#2}
     \end{figure}
@@ -110,6 +120,76 @@
             \label{#6}
         \end{minipage}
     \end{figure}
+}
+
+
+\newcommand{\mysubfigurerow}[9]{
+    \begin{figure}[#3]
+        \centering
+        \begin{subfigure}[b]{#1\textwidth}
+            \centering
+            \myincludegraphics{\linewidth}{#2}
+            \caption{#4}
+            \label{#2}
+        \end{subfigure}
+        \hspace{0.05\textwidth}
+        \begin{subfigure}[b]{#5\textwidth}
+            \centering
+            \myincludegraphics{\linewidth}{#6}
+            \caption{#7}
+            \label{#6}
+        \end{subfigure}
+        \caption{#8}
+        \label{#9}
+    \end{figure}
+}
+
+\newcommand{\mysubfigurerowthree}[9]{
+    \begin{figure}[#3]
+        \centering
+        \begin{subfigure}[b]{#1\textwidth}
+            \centering
+            \myincludegraphics{\linewidth}{#2}
+            \ifthenelse{\equal{#4}{}}{}{\caption{#4}}
+            \label{#2}
+        \end{subfigure}
+        \hspace{0.03\textwidth}
+        \begin{subfigure}[b]{#1\textwidth}
+            \centering
+            \myincludegraphics{\linewidth}{#5}
+            \ifthenelse{\equal{#6}{}}{}{\caption{#6}}
+            % \label{#5}
+        \end{subfigure}
+        \hspace{0.03\textwidth}
+        \begin{subfigure}[b]{#1\textwidth}
+            \centering
+            \myincludegraphics{\linewidth}{#7}
+            \ifthenelse{\equal{#8}{}}{}{\caption{#8}}
+            % \label{#7}
+        \end{subfigure}
+        \caption{#9}
+        \label{#2}
+    \end{figure}
+}
+
+\newcommand{\minipagewrap}[5]{%
+    \begin{minipage}[#3]{#1\textwidth}
+        #5%
+    \end{minipage}\hfill
+    \begin{minipage}[#3]{\dimexpr0.95\textwidth-#1\textwidth\relax}
+        \centering
+        \IfFileExists{svgs/#2.svg}{%
+            \includesvg[width=\textwidth]{svgs/#2}%
+        }{%
+            \IfFileExists{svgs/#2.pdf}{%
+                \includegraphics[width=\textwidth]{svgs/#2.pdf}%
+            }{%
+                \includegraphics[width=\textwidth]{figures/#2.png}%
+            }%
+        }
+        \captionof{figure}{#4}
+        \label{#2}
+    \end{minipage}
 }
 
 \newcommand{\todo}[1]{

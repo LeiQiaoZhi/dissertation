@@ -5,6 +5,90 @@ Evaluation...
 \section{Naturalness}
 \label{Naturalness}
 
+\subsection{Terrain}
+
+\textbf{\underline{Goal}}: Determine how different heightmap generation techniques affect the perceived naturalness of the rendered terrain scene.
+
+\textbf{\underline{Conditions Compared}}: The four heightmap generation models, listed in Table \ref{tab:heightmap_models}, are classified based on the incorporation of Dual Heightmap (Section \ref{Dual Heightmap}) and Domain Distortion (Section \ref{Domain Distortion}).
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{|c|c|c|l|}
+        \hline
+        \textbf{Dual Heightmap} & \textbf{Domain Distortion} & \textbf{Baseline} & \textbf{Name} \\
+        \hline
+        T & T &  & \textit{Dual Distorted} \\
+        T & F &  & \textit{Dual Original} \\
+        F & T &  & \textit{Single Distorted} \\
+        F & F & Baseline & \textit{Single Original} \\
+        \hline
+    \end{tabular}
+    \caption{Comparison of heightmap models}
+    \label{tab:heightmap_models}
+\end{table}
+
+\textbf{\underline{Method:}} To evaluate the perceived naturalness of each heightmap generation model, I conducted a pairwise comparison experiment with 14 participants. They viewed a video featuring 30 trials, each showing two 10-second side-by-side videos of the same terrain scene rendered in my application using different heightmap generation models. Participants then answered the prompt: ``Considering only the geometry of the terrain (such as the overall form and finer details of the shape), which terrain in these images appears more natural?" This experiment considers five terrain scenes with various viewing conditions and environments. The final video was compiled using the \texttt{moviepy} Python library, with randomized pairwise comparisons.
+
+\textbf{\underline{Results:}} In my experiment, I used Matlab's \texttt{pwcmp} library \cite{perez-ortiz_practical_2017}, a set of functions for scaling pairwise comparisons, to calculate quality scores known as Just-Objectionable-Differences (JODs). Since JOD scores are relative, I chose the \textit{Single Original} model, a single heightmap without domain distortion, as the baseline with a score of 0. A score of 1 JOD for another model indicates that 75\% of participants found it more realistic than the baseline. Negative JOD scores suggest the baseline was preferred, while a score of 0 implies observers guessed randomly between the two methods.
+
+\minipagewrap{0.5}{JOD_all}{}
+{Average JOD scores for each terrain generation model.}{
+Figure \ref{JOD_all} shows the average JOD scores for each heightmap generation method, aggregated over all scenes. The 95\% confidence intervals, calculated through bootstrapping, are shown in the plot. The \textit{Dual Distorted} model is perceived as the most natural, followed closely by \textit{Dual Original}, with \textit{Single Distorted} slightly outperforming the baseline.
+}
+
+
+The scene-specific JOD scores in Figure \ref{JOD_scenes} show that dual heightmap models consistently are perceived as more natural than single heightmap models across all scenes. However, models with domain distortion aren't always preferred over those without it. 
+
+For single heightmap models, distorted models are preferred, with the exception of Scene 5, where they are slightly less favored. In dual heightmap models, Scenes 1 and 4 stand out because domain-distorted models are perceived as less natural. Observing the scenes in Figure \ref{stretch}, this may be due to domain distortion causing some areas to appear overly stretched. In general, models with domain distortion are perceived similarly to those without. This is because I had to keep the distortion strength low to avoid highly unnatural results. Furthermore, its effects vary across different regions, making them less noticeable.
+
+\myfigure{0.8}{JOD_scenes}{h}
+{JOD scores broken down for each scene presented.}
+
+\mysubfigurerow{0.4}{stretch0}{h!}
+{Without domain distortion}
+{0.4}{stretch1}
+{With domain distortion}
+{Renders illustrating the stretching effects of domain distortion.}
+{stretch}
+
+I used \texttt{pwcmp} to test for two-tailed statistical significance in the differences between JOD scores, shown in Figure REF. The results indicate a significant difference between dual and single heightmap models across all scenes. However, there is no significant difference between models with and without domain distortion.
+
+\myfigure{0.8}{JOD_triangle}{h}
+{Visualization of the statistical significance in JOD score differences. Continuous lines between two models indicate a statistically significant difference, while dashed lines show insufficient evidence for such a conclusion.}
+
+Overall, the dual-heightmap technique significantly improves perceived naturalness, making it preferable to the single-heightmap approach. Although domain distortion does not significantly impact perceived naturalness, it can still be helpful for creating intriguing, alien landscapes, as shown in  Figure \ref{alien}.
+
+\subsection{Atmosphere}
+
+\textbf{\underline{Goal:}} To compare the perceived naturalness of the simulated atmosphere (Section \ref{Atmosphere}) with the naive implementation of the atmosphere (Appendix REF).
+
+\textbf{\underline{Conditions Compared}}: 
+\begin{enumerate}
+	\item Simulated Rayleigh scattering
+	\item Naive implementation -- sky rendered with gradient color and atmospheric effects achieved through post-processing based on terrain distance.
+\end{enumerate}
+
+\textbf{\underline{Method:}}
+I conducted a pairwise comparison experiment similar to the one described in Section REF, comparing renders from the two atmospheric implementations. The experiment used 10 scenes with varying sun directions to represent different times of day and viewing conditions. Participants were asked, ``Which render provides a more natural overall atmosphere, including sky color and depiction of distant terrain?"
+
+\textbf{\underline{Results:}}
+Using Python for data analysis, Figure \ref{Atmos_CI} shows the probability $p$ of participants favoring the simulated atmosphere over the naive implementation as more natural, including 95\% confidence intervals for each scene and an average result. The probabilities generally exceed 0.5, with an average $p = 0.86$.
+
+\myfigure{0.7}{Atmos_CI}{h}
+{Probability of choosing the simulated atmosphere as more natural than the naive implementation, broken down per scene.}
+
+I performed a one-tailed Binomial statistical test at a 2.5\% significance level to test $H_0$: the simulated atmosphere is not perceived as more natural than the naive implementation ($p \le 0.5$). All scenes except Scene 7 and 9 can reject $H_0$ with 97.5\% confidence, implying that the simulated atmosphere is perceived as more natural. Scene 7 stands out as more people perceived the naive implementation as more natural. Observing Scene 7 in Figure \ref{atmos_eval}, this is likely due to the red hue being associated with a sunset.
+
+\mysubfigurerow{0.45}{atmos_eval_1}{h!}
+{Naive implementation}
+{0.45}{atmos_eval_2}
+{Simulated atmosphere}
+{Renders from Scene 7, for both atmosphere implementations}
+{atmos_eval}
+
+Overall, the evidence supports the rejection of $H_0$ for most scenes and on average, suggesting the simulated atmosphere is perceived as more natural and preferable to the naive implementation.
+
+
 \section{Correctness}
 \label{Correctness}
 
@@ -152,7 +236,7 @@ I developed heatmap-like debug views to analyze the computational load distribut
 
 \myfigurerow
 {0.45}{profile_terrain}{h}
-{Heatmap of terrain ray marching steps. Green regions represent areas requiring fewer steps, whereas red regions represent areas requiring more steps, indicating higher computational demand.}
+{Heatmap of terrain ray marching steps. White regions represent areas requiring fewer steps, whereas red regions represent areas requiring more steps, indicating higher computational demand.}
 {0.45}{profile_clouds}
 {Heatmap of number of cloud ray marching steps.}
 
@@ -198,4 +282,4 @@ Determine the storage requirements for scenes in my application.
 \textbf{\underline{Methods and Results:}}
 I analyzed the storage by measuring the number of parameters (floats, ints, or bools) in the JSON save file, totaling 301 parameters with a file size of approximately 27.0 KB. This file size is relatively small when compared to the sizes typically associated with mesh data or Neural Implicit Representations. However, the use of JSON for scene storage has limited compatibility as it can only be loaded and interpreted by my application.
 
-To enhance compatibility, I developed an alternative method that generates a fragment shader file, substituting most uniforms with values in the JSON save file. This approach is more compatibile since the shader can be executed on any system that supports GLSL and is configured with a screen quad. The resulting shader file contains 2,339 non-empty lines and is approximately 82.9 KB in size. However, this method does not support interactive adjustments of parameter values at runtime, as the uniforms are converted into constants.
+To enhance compatibility, I developed an alternative method that generates a fragment shader file, substituting most uniforms with values in the JSON save file. This approach is more compatible since the shader can be executed on any system that supports GLSL and is configured with a screen quad. The resulting shader file contains 2,339 non-empty lines and is approximately 82.9 KB in size. However, this method does not support interactive adjustments of parameter values at runtime, as the uniforms are converted into constants.
