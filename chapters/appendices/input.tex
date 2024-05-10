@@ -1,0 +1,21 @@
+% \section{Input Controls}
+\label{Input Controls}
+
+This appendix provides the implementation details for the camera controls and callback system in my project.
+
+\section{Camera Controls}
+
+In this project, the scene features an infinitely expansive terrain, making traditional CAD camera controls like turn-table or trackball models unsuitable. A first-person game-like camera control model \cite{noauthor_first-person_2024} was adopted for more intuitive navigation in such an extensive environment. The camera movement is controlled by the WASD and EQ keys, which allow movement along the three axes of the camera's coordinate system. The left mouse button drag controls the forward direction of the camera, while the scroll wheel adjusts the focal length. Right mouse dragging enables movement in the plane perpendicular to the forward direction. 
+
+Moreover, I added trackball camera controls \cite{noauthor_object_nodate} for navigating planets in my planet extension (Section \todo{REF}), and included an option in the UI to switch control modes.
+
+Camera parameters, including position and rotation, are first updated on the CPU using GLFW, and then passed as uniforms to the fragment shader. For detailed adjustments, the precise position and rotation can be fine-tuned through the UI.
+
+\myfigure{0.4}{camera}{}
+{This screenshot displays the camera panel in the UI, featuring adjustable settings and camera transforms. \todo{update and make inline}}
+
+This control model enables efficient navigation through the extensive virtual world, proving especially useful for debugging and locating ideal camera angles for rendering.
+
+\section{Callback System}
+
+To address GLFW's limitation of handling only one callback per event, a centralized callback management system was implemented. This system stores and triggers user-defined callback functions for various input events. It activates the appropriate callbacks in response to specific events, thereby facilitating multiple reactions to a single input. This structure significantly enhances the flexibility and complexity of input management within the application.

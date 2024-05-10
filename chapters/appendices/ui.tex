@@ -1,0 +1,75 @@
+% \section{UI}
+\label{UI}
+
+This appendix outlines the implementation details of the application's UI and the save and load system.
+
+\section{Hierarchical Structure}
+
+\mywrapfigure{0.4}{ui_hierarchy}{r}
+{Outlines the hierarchical structure of the UI.}{}
+
+The UI of the application was implemented following an Object-Oriented approach and a hierarchical structure, represented in Figure \ref{ui_hierarchy}.
+
+The \textbf{App} is the singleton entity at the top level, containing multiple \textbf{panels}. Each panel inherits from a common abstract class, and comprises several \textbf{properties}. These properties are again derived from an abstract class and are responsible for managing individual or groups of parameters. The parameters correspond to uniforms on the GPU, facilitating real-time updates. UI interactions trigger updates to the corresponding uniforms in the GPU.
+
+The hierarchy in implementation directly corresponds to the visual structure of the UI, as illustrated in Figure \ref{ui_visual}.
+
+\myfigure{0.8}{ui_visual}{}
+{Demonstrates the visual structure of the UI.}
+
+\section{Composite Pattern}
+
+In enhancing the UI's flexibility and organizational structure, the \textbf{Composite Design Pattern} plays a crucial role. This design pattern allows for treating individual objects and compositions of objects uniformly. In the context of the app's UI:
+
+\begin{itemize}
+    \item \textbf{GroupProperty}: Implemented as a single property, it is a collapsible group containing multiple properties.
+    \item \textbf{TabPanel}: Implemented as a singular panel, it contains multiple sub-panels organized as tabs. 
+\end{itemize}
+
+Both elements allows for efficient space usage and better categorization, as demonstrated in Figure \ref{composite}.
+
+\myfigure{0.6}{composite}{}
+{Demonstrates GroupProperty and TabPanel. GroupProperty allows several properties to be organized into a collapsible group. TabPanel allows several panels to be organized as tabs in a single panel.}
+
+\section{Save and Load}
+
+The UI supports saving and loading of parameters and layout preferences.
+
+\paragraph{Selection of JSON format}
+I chose the JSON format for the app's saving and loading because of its compatibility with various data types, its hierarchical structure that mirrors the app's design, and its human readability.
+
+\paragraph{Recursive Implementation}
+The save and load functionality is implemented in a recursive manner. This design choice simplifies the process and ensures consistency across different levels of the UI. Each class in the application, including the app itself, every panel, and every property, implements $\text{save\_to\_json}$ and $\text{load\_from\_json}$ methods. This recursive approach mirrors the hierarchical nature of the UI, enabling seamless serialization and deserialization of parameters.
+
+\paragraph{Scope of Save and Load}
+One of the benefits of this hierarchical and recursive implementation is the flexibility it offers in terms of scope. It is possible to save and load configurations either globally or at the individual panel level. This flexibility is reflected in the UI, where buttons are provided in the menu bar for global operations, and within each panel for more localized control, as demonstrated in Figure \ref{save}.
+
+\paragraph{Example JSON Structure}
+A typical JSON file structure for saving the app's parameters resembles the following:
+
+\begin{minted}{json}
+{
+    "Panel 1": {
+        "Param X": {
+            "value a": 10,
+            "value b": 12
+        },
+        "Param Y": {
+            "value": 1.2
+        }
+    },
+    "Panel 2": {
+        "Param Z": {
+            "value": true
+        }
+    }
+}
+\end{minted}
+
+
+\section{Layout Preferences}
+
+\mywrapfigure{0.6}{save}{r}
+{Demonstrates the UI of save and load functionalities.}{8}
+
+In addition to parameter values, layout preferences such as the sizes and positions of panels are also managed through the save and load system. As shown in Figure \ref{save}, the menu bar includes options for saving and loading these layout configurations, further enhancing the app’s user experience.

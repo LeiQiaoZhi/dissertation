@@ -332,9 +332,6 @@ I paid careful attention to naming conventions across the C++ and GLSL codebases
 \paragraph{Version Control and Backup}
 For both the code repository and the dissertation write-up, I utilized Git for version control and GitHub as a remote repository for backup. I made sure to make regular commits and pushes.
 
-\myfigure{1.0}{dependency}{}
-{Dependency graph of shader files in the project, where A $\rightarrow$ B denotes ``A imports B".}
-
 \section{Software License}
 \label{sec:License}
 
@@ -352,5 +349,40 @@ My project utilized a selection of pre-existing libraries, as detailed in Table 
 \paragraph{Prior Experience}
 I had prior experience with OpenGL wrapper libraries, gained through the ``Introduction to Graphics" course and a past internship, although my direct experience with OpenGL is limited. I had worked with C++, Dear ImGui and CMake in a previous internship. While I had some exposure to HLSL through ``Introduction to Graphics", my experience with GLSL prior to this project was minimal.
 
-\figureastable{1.0}{tools_table}{}
-{Overview of purposes and licenses for utilized tools and libraries in the project.}
+% \figureastable{1.0}{tools_table}{}
+% {Overview of purposes and licenses for utilized tools and libraries in the project.}
+
+\vspace{\baselineskip}
+
+\setlength{\arrayrulewidth}{0.2mm} % Adjusts line thickness
+\renewcommand{\arraystretch}{1.2} % Adjusts row spacing (1.5 times the default)
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{7cm}|>{\raggedright\arraybackslash}p{4.5cm}|}
+        \hline
+        \textbf{Library/Tool} & \textbf{Purpose} & \textbf{License} \\
+        \hline
+        OpenGL & Establish the core graphics pipeline & Open source for SI \\
+        % \hline
+        GLFW & Manage desktop application windows & zlib/libpng \\
+        % \hline
+        Dear ImGui & Develop the application's user interface & MIT \\
+        % \hline
+        CMake & Maintain a structured and efficient compilation process & BSD \\
+        % \hline
+        Nlohmann JSON & JSON operations in C++ & MIT \\
+        % \hline
+        STB Image & Image operations in C++ & Public Domain or MIT \\
+        % \hline
+        GLM & Matrix and vector operations in C++ & Happy Bunny or MIT \\
+        \hline
+    \end{tabular}
+    \caption{Overview of purposes and licenses for utilized tools and libraries in the project.}
+    \label{tools_table}
+\end{table}
+
+\renewcommand{\arraystretch}{1.0} % Reset to default row spacing
+
+\myfigure{1.0}{dependency}{h!}
+{Dependency graph of shader files in the project, where A $\rightarrow$ B denotes ``A includes B".}

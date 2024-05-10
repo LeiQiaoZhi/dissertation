@@ -1,8 +1,37 @@
-\label{sec:1}
+\label{Introduction}
 
-Introduction...
+\section{Motivation}
+\label{Motivation}
 
-\section{Introduction Section 1}
-\label{sec:1.1}
+Procedural generation and rendering of natural environments has long been a valuable but challenging problem in computer graphics. It's especially useful in the entertainment industry, as manually sculpting terrain, placing trees, and creating skyboxes is labor-intensive. This task becomes even more challenging for real-time applications like video games, given the scale and level of detail in natural environments.
 
-Introduction Section 1... 
+This project aims to design and build an application capable of rendering procedurally generated natural environments in real-time using ray marching of implicit representations. The environment should include terrain, foliage, water, sky, and clouds. Users will be able to customize the environment's properties and rendering parameters, navigate the scene, and simultaneously visualize the results in a viewport.
+
+\section{Project Aims}
+\label{Project Aims}
+
+This project has the following goals:
+
+\begin{enumerate}
+	\item Explore procedural generation techniques for creating natural terrains using implicit representations.
+	\item Investigate ray marching techniques to accurately and efficiently find intersections.
+	\item Expand terrains with details such as foliage, water, clouds, and atmosphere to produce immersive natural environments.
+\end{enumerate}
+
+By integrating these goals, my objective is to develop a final product: an open-source application that serves as an interactive learning tool or starting point for students, researchers, and artists interested in procedural generation, implicit representations, and ray marching. The desired state of the application window and its components is illustrated in Figure \ref{goal_state}, while sample renders created by this final state are shown in Figure \ref{extreme} and \ref{example2}.
+
+\myfigure{0.9}{goal_state}{H}
+{Goal state for the application window.}
+
+\mysubfigurerowthree{0.31}{terrain_trees}{h!}{}
+{extreme}{}
+{aerial}{}
+{Example renders of natural environments in my application.}
+
+\mysubfigurerowthree{0.31}{example2}{h!}{}
+{example1}{}
+{planet1}{}
+{Example renders of natural environments in my application.}
+
+\section{Previous Work}
+\label{Previous Work}

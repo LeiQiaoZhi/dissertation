@@ -1,0 +1,43 @@
+\label{Ray}
+
+Appendix B...
+
+\section{Calculating the Camera Ray}
+
+For each pixel, the process to calculate the camera ray (defined in Section \ref{Rendering}) involves transforming screen coordinates to a normalized space, and then determining the corresponding direction in the world space.
+
+\paragraph{Screen to normalized space}
+To make the rendering resolution-independent, each pixel's screen coordinates are converted to a normalized space. Let $\mathbf{P}$ be the screen coordinates and $\mathbf{res}$ be the resolution. The normalized coordinates $\mathbf{N}$ are given by:
+
+\begin{equation}
+   \mathbf{N} = \frac{2 \cdot \mathbf{P} - \mathbf{res}}{\min(\mathbf{res}.x, \mathbf{res}.y)}
+\end{equation}
+
+\paragraph{World position calculation}
+To find the world position for each pixel, the camera parameters are used. Let $\mathbf{C}$ be the camera position, $\mathbf{f}, \mathbf{r}, \mathbf{u}$ be the forward, right and up directions respectively, and $f$ be the focal length. Here, $f$ is the distance in world coordinates between the camera $\mathbf{C}$ and the projection plane, influencing the field of view. The world position $\mathbf{W}$ is computed as:
+
+\begin{equation}
+   \mathbf{W} = \mathbf{C} + \text{normalize}(\mathbf{f}) \cdot f + \mathbf{N}.x \cdot \text{normalize}(\mathbf{r}) + \mathbf{N}.y \cdot \text{normalize}(\mathbf{u})
+\end{equation}
+
+\paragraph{Deriving the camera ray}
+The direction of the camera ray $\mathbf{r_c}$ is the normalized vector from the camera position to the world position of the pixel. It is expressed as:
+
+\begin{equation}
+   \mathbf{r_c} = \text{normalize}(\mathbf{W} - \mathbf{C})
+\end{equation}
+
+These steps establish the direction of each ray from the camera to the pixel in world space, setting the foundation for ray marching.
+
+\section{Calculating the Sun Ray}
+\label{Sun Ray}
+
+In this project, the \textbf{sun ray}, $\mathbf{r_s}$, is the normalized vector from a point in the world, towards the sun. The sun is treated as a directional light source due to its immense distance from Earth, implying that the sun rays are parallel at every point.
+
+The sun ray's direction is represented using spherical coordinates, which offer a convenient method to define the direction in 3D space using only two parameters: azimuth ($\phi$) and elevation ($\theta$). These parameters are adjustable in the UI, allowing run-time changes to the sun ray. $\mathbf{r_s}$ is computed as follows:
+
+\begin{equation}
+    \mathbf{r_s} = \text{normalize}\left( \begin{bmatrix} \sin(\theta) \cos(\phi) \\ \cos(\theta) \\ \sin(\theta) \sin(\phi) \end{bmatrix} \right)
+\end{equation}
+
+This vector is critical for lighting calculations in the rendering process.
